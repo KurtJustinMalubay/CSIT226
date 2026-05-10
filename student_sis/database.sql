@@ -1,50 +1,93 @@
 -- ============================================
---  SIS - Student Information System
+--  Lost & Found System
 --  Database Setup Script
 --  Run this in phpMyAdmin or MySQL CLI
 -- ============================================
 
-CREATE DATABASE IF NOT EXISTS dbstudentinfosys
+CREATE DATABASE IF NOT EXISTS lost_and_found_db
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
 
-USE dbstudentinfosys;
+USE lost_and_found_db;
 
--- ---- User Profiles ----
-CREATE TABLE IF NOT EXISTS tbluserprofile (
-    id        INT AUTO_INCREMENT PRIMARY KEY,
-    firstname VARCHAR(100) NOT NULL,
-    lastname  VARCHAR(100) NOT NULL,
-    gender    VARCHAR(10)  DEFAULT NULL,
-    created_at DATETIME    DEFAULT CURRENT_TIMESTAMP
+-- ---- User ----
+CREATE TABLE IF NOT EXISTS User (
+    uId VARCHAR(50) PRIMARY KEY,
+    fullName VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    universityId VARCHAR(50) NOT NULL UNIQUE,
+    isAdmin BOOLEAN DEFAULT 0,
+    isStudent BOOLEAN DEFAULT 0,
+    isFaculty BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- ---- User Accounts ----
-CREATE TABLE IF NOT EXISTS tbluseraccount (
-    id        INT AUTO_INCREMENT PRIMARY KEY,
-    username  VARCHAR(100) NOT NULL UNIQUE,
-    emailadd  VARCHAR(150) NOT NULL,
-    password  VARCHAR(255) NOT NULL,
-    created_at DATETIME   DEFAULT CURRENT_TIMESTAMP
+-- ---- Admin_Staff ----
+CREATE TABLE IF NOT EXISTS Admin_Staff (
+    adId VARCHAR(50) PRIMARY KEY,
+    adminRole VARCHAR(100) NOT NULL,
+    FOREIGN KEY (adId) REFERENCES User(uId) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- ---- Students ----
-CREATE TABLE IF NOT EXISTS tblstudent (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    idnumber   VARCHAR(50)  NOT NULL,
-    firstname  VARCHAR(100) NOT NULL,
-    lastname   VARCHAR(100) NOT NULL,
-    gender     VARCHAR(10)  DEFAULT NULL,
-    program    VARCHAR(100) DEFAULT NULL,
-    contactno  VARCHAR(20)  DEFAULT NULL,
-    dob        DATE         DEFAULT NULL,
-    created_at DATETIME     DEFAULT CURRENT_TIMESTAMP
+-- ---- Faculty ----
+CREATE TABLE IF NOT EXISTS Faculty (
+    facId VARCHAR(50) PRIMARY KEY,
+    department VARCHAR(100) NOT NULL,
+    FOREIGN KEY (facId) REFERENCES User(uId) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- ---- Sample Students ----
-INSERT INTO tblstudent (idnumber, firstname, lastname, gender, program, contactno, dob) VALUES
-('2024-00001', 'Juan',    'Dela Cruz',  'Male',   'BSIT',  '09171234567', '2004-03-15'),
-('2024-00002', 'Maria',   'Santos',     'Female',  'BSCS',  '09281234567', '2004-07-22'),
-('2024-00003', 'Jose',    'Reyes',      'Male',   'BSIS',  '09391234567', '2003-11-05'),
-('2024-00004', 'Ana',     'Garcia',     'Female',  'BSN',   '09451234567', '2005-01-18'),
-('2024-00005', 'Carlos',  'Mendoza',    'Male',   'BSBA',  '09561234567', '2003-09-30');
+-- ---- Student ----
+CREATE TABLE IF NOT EXISTS Student (
+    studId VARCHAR(50) PRIMARY KEY,
+    course VARCHAR(100) NOT NULL,
+    FOREIGN KEY (studId) REFERENCES User(uId) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---- Item_Report ----
+CREATE TABLE IF NOT EXISTS Item_Report (
+    reportId INT AUTO_INCREMENT PRIMARY KEY,
+    reporterId VARCHAR(50) NOT NULL,
+    itemName VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    eventDate DATE NOT NULL,
+    reportType ENUM('Lost', 'Found') NOT NULL,
+    currentStatus ENUM('Pending', 'Matched', 'Claimed', 'Returned', 'Resolved', 'Cancelled') DEFAULT 'Pending',
+    location VARCHAR(255) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reporterId) REFERENCES User(uId) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---- Claim_Request ----
+CREATE TABLE IF NOT EXISTS Claim_Request (
+    claimId INT AUTO_INCREMENT PRIMARY KEY,
+    reportId INT NOT NULL,
+    claimantId VARCHAR(50) NOT NULL,
+    approveAdminId VARCHAR(50) DEFAULT NULL,
+    proofOfOwnership TEXT NOT NULL,
+    claimStatus ENUM('Pending', 'Approved', 'Denied') DEFAULT 'Pending',
+    claimDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reportId) REFERENCES Item_Report(reportId) ON DELETE CASCADE,
+    FOREIGN KEY (claimantId) REFERENCES User(uId) ON DELETE CASCADE,
+    FOREIGN KEY (approveAdminId) REFERENCES Admin_Staff(adId) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---- Audit_Log ----
+CREATE TABLE IF NOT EXISTS Audit_Log (
+    logId INT AUTO_INCREMENT PRIMARY KEY,
+    reportId INT NOT NULL,
+    adminId VARCHAR(50) NOT NULL,
+    oldStatus ENUM('Pending', 'Matched', 'Claimed', 'Returned', 'Resolved', 'Cancelled') DEFAULT NULL,
+    newStatus ENUM('Pending', 'Matched', 'Claimed', 'Returned', 'Resolved', 'Cancelled') NOT NULL,
+    timeStamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reportId) REFERENCES Item_Report(reportId) ON DELETE CASCADE,
+    FOREIGN KEY (adminId) REFERENCES Admin_Staff(adId) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---- Default Admin User ----
+-- Password is 'admin123' (hashed)
+INSERT IGNORE INTO User (uId, fullName, email, password, universityId, isAdmin, isStudent, isFaculty) VALUES
+('admin_1', 'System Administrator', 'admin@university.edu', '$2y$10$tZ2xZ11B4.1c11Gz.L.aZ.tPzZ5uE2B1Xg.z1/B1uJb2r3.0WkGim', 'ADMIN-001', 1, 0, 0);
+
+INSERT IGNORE INTO Admin_Staff (adId, adminRole) VALUES
+('admin_1', 'System Admin');

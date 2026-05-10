@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="css/site.css">
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
 
@@ -17,34 +18,34 @@
     <div class="nav-container">
         <a href="index.php" class="nav-brand">
             <div class="nav-logo">
-                <i class="fas fa-graduation-cap"></i>
+                <i class="fas fa-search"></i>
             </div>
-            <span class="nav-title">SIS<span class="nav-subtitle">Student Portal</span></span>
+            <span class="nav-title">CIT-U<span class="nav-subtitle">Lost & Found</span></span>
         </a>
         <div class="nav-links">
             <a href="index.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : ''; ?>">
-                <i class="fas fa-home"></i> Home
+                Home
             </a>
-            <?php if (isset($_SESSION['username'])): ?>
+            <?php if (isset($_SESSION['uid'])): ?>
             <a href="dashboard.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : ''; ?>">
-                <i class="fas fa-table-columns"></i> Dashboard
+                Dashboard
             </a>
-            <a href="addrecord.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'addrecord.php' ? 'active' : ''; ?>">
-                <i class="fas fa-user-plus"></i> Add Student
+            <a href="dashboard.php#recent" class="nav-link">
+                Recent Items
             </a>
             <div class="nav-user">
                 <i class="fas fa-circle-user"></i>
-                <span><?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                <span>Hello, <?php echo htmlspecialchars($_SESSION['fullName'] ?? $_SESSION['username'] ?? 'Student'); ?>!</span>
             </div>
             <a href="logout.php" class="nav-btn nav-btn-outline">
-                <i class="fas fa-right-from-bracket"></i> Logout
+                <i class="fas fa-right-from-bracket"></i> Log Out
             </a>
             <?php else: ?>
             <a href="login.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'login.php' ? 'active' : ''; ?>">
-                <i class="fas fa-right-to-bracket"></i> Login
+                Login
             </a>
             <a href="register.php" class="nav-btn">
-                <i class="fas fa-user-plus"></i> Register
+                Sign Up
             </a>
             <?php endif; ?>
         </div>

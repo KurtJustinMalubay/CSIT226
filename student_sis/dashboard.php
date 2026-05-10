@@ -1,116 +1,175 @@
 <?php
 session_start();
-if (!isset($_SESSION['username'])) { header('Location: login.php'); exit; }
+if (!isset($_SESSION['uid'])) { header('Location: login.php'); exit; }
 include 'connect.php';
 $title = 'Dashboard';
 
-// Stats
-$total = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM student"))['c'] ?? 0;
+// Stats for Campus Overview
+$total_lost = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report WHERE reportType='Lost'"))['c'] ?? 0;
+$total_found = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report WHERE reportType='Found'"))['c'] ?? 0;
+$successful_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Claim_Request WHERE claimStatus='Approved'"))['c'] ?? 0;
+$pending_actions = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Claim_Request WHERE claimStatus='Pending'"))['c'] ?? 0;
 
-// Search/filter
-$search = isset($_GET['q']) ? trim($_GET['q']) : '';
-$filter_course = isset($_GET['course']) ? trim($_GET['course']) : '';
-
-$where = "WHERE 1=1";
-$params = []; $types = "";
-if ($search !== '') {
-    $where .= " AND (studId LIKE ? OR course LIKE ?)";
-    $like = "%$search%";
-    $params = array_merge($params, [$like, $like]);
-    $types .= "ss";
-}
-if ($filter_course !== '') {
-    $where .= " AND course = ?";
-    $params[] = $filter_course;
-    $types .= "s";
-}
-
-$stmt = $connection->prepare("SELECT * FROM student $where ORDER BY studId DESC");
-if (!empty($params)) { $stmt->bind_param($types, ...$params); }
-$stmt->execute();
-$result = $stmt->get_result();
-
-// Courses for filter
-$course_list = mysqli_query($connection,"SELECT DISTINCT course FROM student ORDER BY course");
-
-// Flash messages
-$flash = isset($_SESSION['flash']) ? $_SESSION['flash'] : null;
-unset($_SESSION['flash']);
+// Recent Items
+$recent_items = mysqli_query($connection, "SELECT * FROM Item_Report ORDER BY reportId DESC LIMIT 6");
 
 require_once 'includes/header.php';
 ?>
 
-<div class="page-header">
-    <div class="page-title">
-        <div class="breadcrumb">
-            <a href="index.php">Home</a>
-            <span class="breadcrumb-sep">/</span>
-            <span>Dashboard</span>
+<div class="hero" style="background: var(--primary); color: white; border-radius: 0 0 20px 20px; padding: 60px 20px; margin-top: -40px;">
+    <h1 style="font-size: 3rem; margin-bottom: 20px; color: white;">Lost it? <span style="color: var(--accent);">Found it?</span> Return it.</h1>
+    <p style="color: rgba(255,255,255,0.8); max-width: 600px; margin: 0 auto 30px; font-size: 16px;">
+        The official centralized platform for reporting and claiming lost items on the CIT-University campus. Secure, fast, and exclusive to Wildcats.
+    </p>
+    <div class="hero-actions" style="display: flex; gap: 16px; justify-content: center;">
+        <button onclick="openModal('reportModal')" class="btn btn-accent btn-lg" style="color: #111;">
+            <i class="fas fa-circle-exclamation"></i> Report Lost Item
+        </button>
+        <button onclick="openModal('foundModal')" class="btn btn-light btn-lg" style="background: white; color: var(--primary-dark); border: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; cursor: pointer;">
+            <i class="fas fa-hand-holding-heart"></i> I Found an Item
+        </button>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="text-center" style="margin-top: 20px;">
+        <h2 style="color: var(--primary-light); font-weight: 800; font-size: 24px;">Campus Overview</h2>
+        <p style="color: var(--text-muted); font-size: 14px;">Real-time statistics of our lost and found records.</p>
+    </div>
+
+    <!-- Stats row -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-top:30px;">
+        <div class="card" style="text-align: center; padding: 30px;">
+            <div style="font-size: 32px; margin-bottom: 10px;">📦❓</div>
+            <div style="font-size:32px;font-weight:800;"><?php echo $total_lost; ?></div>
+            <div style="font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Total Lost</div>
         </div>
-        <h1>Student Records</h1>
-        <p>Welcome back, <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong></p>
+        <div class="card" style="text-align: center; padding: 30px;">
+            <div style="font-size: 32px; margin-bottom: 10px; color: var(--success);"><i class="fas fa-search"></i></div>
+            <div style="font-size:32px;font-weight:800;"><?php echo $total_found; ?></div>
+            <div style="font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Total Found</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 30px;">
+            <div style="font-size: 32px; margin-bottom: 10px; color: var(--primary-light);">124</div>
+            <div style="font-size:32px;font-weight:800;"><?php echo $successful_claims; ?></div>
+            <div style="font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Successful Claims</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 30px;">
+            <div style="font-size: 32px; margin-bottom: 10px; color: var(--text-muted);"><i class="far fa-clock"></i></div>
+            <div style="font-size:32px;font-weight:800;"><?php echo $pending_actions; ?></div>
+            <div style="font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Pending Actions</div>
+        </div>
     </div>
-    <a href="addrecord.php" class="btn btn-primary">
-        <i class="fas fa-user-plus"></i> Add New Student
-    </a>
-</div>
 
-<!-- Stats row -->
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px;">
-    <div class="card card-sm" style="display:flex;align-items:center;gap:16px;">
-        <div class="feature-icon" style="margin:0;flex-shrink:0;"><i class="fas fa-users"></i></div>
-        <div><div style="font-size:26px;font-weight:800;"><?php echo $total; ?></div><div style="font-size:12px;color:var(--text-muted)">Total Students</div></div>
+    <div class="section-header" id="recent">
+        <h2>Recently Reported</h2>
+        <a href="#">View All</a>
     </div>
-</div>
 
-<?php if ($flash): ?>
-<div class="alert alert-<?php echo $flash['type']; ?>">
-    <i class="fas fa-<?php echo $flash['type']==='success'?'circle-check':'circle-exclamation'; ?>"></i>
-    <?php echo htmlspecialchars($flash['msg']); ?>
-</div>
-<?php endif; ?>
-
-<div class="table-wrap">
-    <div class="table-toolbar">
-        <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-            <div class="table-search">
-                <i class="fas fa-magnifying-glass"></i>
-                <input type="text" name="q" placeholder="Search students..." value="<?php echo htmlspecialchars($search); ?>">
+    <div class="item-grid">
+        <?php while($item = mysqli_fetch_assoc($recent_items)): ?>
+        <div class="item-card">
+            <div class="item-img">
+                <i class="far fa-image"></i>
             </div>
-        </form>
-        <span style="font-size:13px;color:var(--text-muted);"><?php echo $result->num_rows; ?> records found</span>
+            <div class="item-content">
+                <div class="item-title"><?php echo htmlspecialchars($item['itemName']); ?></div>
+                <div class="item-meta">
+                    <span><i class="fas fa-location-dot"></i> <?php echo htmlspecialchars($item['location']); ?></span>
+                    <span><i class="far fa-calendar"></i> Reported <?php echo date('M d, Y', strtotime($item['created_at'])); ?></span>
+                </div>
+                <div class="mt-auto">
+                    <?php if ($item['currentStatus'] === 'Pending' || $item['currentStatus'] === 'Found'): ?>
+                    <a href="claim.php?id=<?php echo $item['reportId']; ?>" class="btn btn-outline" style="width: 100%; border-color: var(--primary-light); color: var(--primary-light);">Claim Item</a>
+                    <?php else: ?>
+                    <button class="btn btn-outline" style="width: 100%;" disabled><?php echo htmlspecialchars($item['currentStatus']); ?></button>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php endwhile; ?>
     </div>
-
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Student ID</th>
-                <th>Course</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php if ($result->num_rows === 0): ?>
-            <tr><td colspan="4" class="table-empty"><i class="fas fa-users-slash"></i>No student records found.</td></tr>
-        <?php else: $i=1; while ($row = $result->fetch_assoc()): ?>
-            <tr>
-                <td style="color:var(--text-muted);"><?php echo $i++; ?></td>
-                <td class="td-bold"><?php echo htmlspecialchars($row['studId']); ?></td>
-                <td><span class="badge badge-program"><?php echo htmlspecialchars($row['course'] ?? '—'); ?></span></td>
-                <td>
-                    <div class="td-actions">
-                        <a href="update.php?id=<?php echo $row['studId']; ?>" class="btn btn-outline btn-sm"><i class="fas fa-pen"></i> Edit</a>
-                        <a href="delete.php?id=<?php echo $row['studId']; ?>" class="btn btn-danger btn-sm"
-                           onclick="return confirm('Delete this student record?')">
-                           <i class="fas fa-trash"></i>
-                        </a>
-                    </div>
-                </td>
-            </tr>
-        <?php endwhile; endif; ?>
-        </tbody>
-    </table>
 </div>
+
+<!-- Modals -->
+<div id="reportModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('reportModal')">&times;</span>
+        <div class="modal-header">
+            <i class="fas fa-exclamation-circle" style="color: var(--warning);"></i>
+            <div class="modal-title">Report a Lost Item</div>
+        </div>
+        <div class="modal-body">
+            <form id="lostForm" onsubmit="event.preventDefault(); submitForm('lostForm');">
+                <div class="form-group">
+                    <label>Item Name</label>
+                    <input type="text" placeholder="What did you lose?" required>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" placeholder="Where did you last see it?" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Proceed</button>
+            </form>
+            <div id="lostFormSuccess" style="display:none; text-align: center; padding: 20px 0;">
+                <i class="fas fa-check-circle" style="font-size: 48px; color: var(--success); margin-bottom: 16px;"></i>
+                <h3 style="margin-bottom: 8px;">Form Submitted</h3>
+                <p>Please proceed to the <strong>Student Affairs Office (SAO)</strong> to formalize your report and verify your identity.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="foundModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('foundModal')">&times;</span>
+        <div class="modal-header">
+            <i class="fas fa-hand-holding-heart" style="color: var(--success);"></i>
+            <div class="modal-title">Turn in a Found Item</div>
+        </div>
+        <div class="modal-body">
+            <form id="foundForm" onsubmit="event.preventDefault(); submitForm('foundForm');">
+                <div class="form-group">
+                    <label>Item Name</label>
+                    <input type="text" placeholder="What did you find?" required>
+                </div>
+                <div class="form-group">
+                    <label>Location Found</label>
+                    <input type="text" placeholder="Where did you find it?" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Proceed</button>
+            </form>
+            <div id="foundFormSuccess" style="display:none; text-align: center; padding: 20px 0;">
+                <i class="fas fa-check-circle" style="font-size: 48px; color: var(--success); margin-bottom: 16px;"></i>
+                <h3 style="margin-bottom: 8px;">Thank You!</h3>
+                <p>Please bring the found item to the <strong>Student Affairs Office (SAO)</strong> for safe keeping. Our admins will log it into the system.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openModal(id) {
+    document.getElementById(id).classList.add('show');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+    // reset form
+    const form = document.getElementById(id.replace('Modal', 'Form'));
+    const success = document.getElementById(id.replace('Modal', 'FormSuccess'));
+    if(form) form.style.display = 'block';
+    if(success) success.style.display = 'none';
+    if(form) form.reset();
+}
+function submitForm(formId) {
+    document.getElementById(formId).style.display = 'none';
+    document.getElementById(formId + 'Success').style.display = 'block';
+}
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        closeModal(event.target.id);
+    }
+}
+</script>
 
 <?php require_once 'includes/footer.php'; ?>
