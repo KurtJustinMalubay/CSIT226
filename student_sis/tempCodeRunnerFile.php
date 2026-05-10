@@ -5,8 +5,16 @@ $title = 'Home';
 require_once 'includes/header.php';
 
 // Get student count for stats
-$count_res = mysqli_query($connection, "SELECT COUNT(*) as total FROM student");
-$total_students = $count_res ? mysqli_fetch_assoc($count_res)['total'] : 0;
+$count_res = mysqli_query($connection, "SELECT COUNT(*) AS total FROM `student`");
+if (!$count_res) {
+    die('Database error: ' . mysqli_error($connection));
+}
+$total_students = mysqli_fetch_assoc($count_res)['total'] ?? 0;
+$prog_res = mysqli_query($connection, "SELECT COUNT(DISTINCT `program`) AS total FROM `user`");
+if (!$prog_res) {
+    die('Database error: ' . mysqli_error($connection));
+}
+$total_programs = mysqli_fetch_assoc($prog_res)['total'] ?? 0;
 ?>
 
 <section class="hero">

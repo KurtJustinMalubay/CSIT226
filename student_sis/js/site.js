@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const u = document.getElementById('txtusername');
             const p = document.getElementById('txtpassword');
             if (!u.value.trim()) {
-                showError('err_username', 'Username is required.'); highlight(u, 'error'); valid = false;
+                showError('err_username', 'Student ID is required.'); highlight(u, 'error'); valid = false;
             } else { clearError('err_username'); highlight(u, 'ok'); }
             if (!p.value) {
                 showError('err_password', 'Password is required.'); highlight(p, 'error'); valid = false;
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const checks = [
                 { id: 'txtfirstname', err: 'err_fname',  msg: 'First name is required.' },
                 { id: 'txtlastname',  err: 'err_lname',  msg: 'Last name is required.' },
-                { id: 'txtusername',  err: 'err_uname',  msg: 'Username is required.' },
+                { id: 'txtusername',  err: 'err_uname',  msg: 'Student ID is required.' },
             ];
             checks.forEach(function (c) {
                 const el = document.getElementById(c.id);

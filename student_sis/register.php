@@ -9,7 +9,6 @@ $success = '';
 if (isset($_POST['btnRegister'])) {
     $fname  = trim($_POST['txtfirstname']);
     $lname  = trim($_POST['txtlastname']);
-    $gender = $_POST['txtgender'];
     $email  = trim($_POST['txtemail']);
     $uname  = trim($_POST['txtusername']);
     $pword  = $_POST['txtpassword'];
@@ -23,29 +22,28 @@ if (isset($_POST['btnRegister'])) {
         $error = 'Password must be at least 6 characters.';
     } else {
         // Check username uniqueness
-        $chk = $connection->prepare("SELECT id FROM tbluseraccount WHERE username = ?");
+        $chk = $connection->prepare("SELECT uid FROM `user` WHERE username = ?");
         $chk->bind_param("s", $uname);
         $chk->execute();
         $chk->store_result();
 
         if ($chk->num_rows > 0) {
-            $error = 'Username already exists. Please choose another.';
+            $error = 'Student ID already exists. Please choose another.';
         } else {
             $hashed = password_hash($pword, PASSWORD_DEFAULT);
+            $fullName = trim($fname . ' ' . $lname);
+            $isAdmin = 0;
+            $isStudent = 1;
+            $isFaculty = 0;
 
-            // Insert profile
-            $s1 = $connection->prepare("INSERT INTO tbluserprofile(firstname,lastname,gender) VALUES(?,?,?)");
-            $s1->bind_param("sss", $fname, $lname, $gender);
-            $s1->execute();
-            $s1->close();
-
-            // Insert account
-            $s2 = $connection->prepare("INSERT INTO tbluseraccount(emailadd,username,password) VALUES(?,?,?)");
-            $s2->bind_param("sss", $email, $uname, $hashed);
-            $s2->execute();
-            $s2->close();
-
-            $success = 'Account created successfully! You can now log in.';
+            $s = $connection->prepare("INSERT INTO `user` (fullName, email, universityId, username, password, isAdmin, isStudent, isFaculty) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $s->bind_param("sssssiii", $fullName, $email, $uname, $uname, $hashed, $isAdmin, $isStudent, $isFaculty);
+            if ($s->execute()) {
+                $success = 'Account created successfully! You can now log in.';
+            } else {
+                $error = 'Registration failed: ' . $connection->error;
+            }
+            $s->close();
         }
         $chk->close();
     }
@@ -93,17 +91,6 @@ require_once 'includes/header.php';
 
         <div class="form-row">
             <div class="form-group">
-                <label for="txtgender">Gender</label>
-                <div class="input-wrap">
-                    <i class="input-icon fas fa-venus-mars"></i>
-                    <select id="txtgender" name="txtgender" class="has-icon">
-                        <option value="">-- Select --</option>
-                        <option value="Male"   <?php echo (isset($_POST['txtgender']) && $_POST['txtgender']==='Male')   ? 'selected':'' ?>>Male</option>
-                        <option value="Female" <?php echo (isset($_POST['txtgender']) && $_POST['txtgender']==='Female') ? 'selected':'' ?>>Female</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
                 <label for="txtemail">Email Address</label>
                 <div class="input-wrap">
                     <i class="input-icon fas fa-envelope"></i>
@@ -111,16 +98,15 @@ require_once 'includes/header.php';
                            placeholder="you@email.com" value="<?php echo isset($_POST['txtemail']) ? htmlspecialchars($_POST['txtemail']) : ''; ?>" required>
                 </div>
             </div>
-        </div>
-
-        <div class="form-group">
-            <label for="txtusername">Username</label>
-            <div class="input-wrap">
-                <i class="input-icon fas fa-at"></i>
-                <input type="text" id="txtusername" name="txtusername" class="has-icon"
-                       placeholder="Choose a username" value="<?php echo isset($_POST['txtusername']) ? htmlspecialchars($_POST['txtusername']) : ''; ?>" required>
+            <div class="form-group">
+                <label for="txtusername">Student ID</label>
+                <div class="input-wrap">
+                    <i class="input-icon fas fa-at"></i>
+                    <input type="text" id="txtusername" name="txtusername" class="has-icon"
+                           placeholder="Enter your student ID" value="<?php echo isset($_POST['txtusername']) ? htmlspecialchars($_POST['txtusername']) : ''; ?>" required>
+                </div>
+                <div class="form-error" id="err_uname"></div>
             </div>
-            <div class="form-error" id="err_uname"></div>
         </div>
 
         <div class="form-row">

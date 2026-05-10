@@ -5,22 +5,18 @@ include 'connect.php';
 $title = 'Add Student';
 $error = '';
 
-$programs = ['BSIT','BSCS','BSIS','BSN','BSED','BEED','BSBA','BSACCOUNTANCY','BSCRIM','BSA'];
-
 if (isset($_POST['btnAdd'])) {
     $idnum   = trim($_POST['txtidnumber']);
     $fname   = trim($_POST['txtfirstname']);
     $lname   = trim($_POST['txtlastname']);
-    $gender  = $_POST['txtgender'];
-    $program = $_POST['txtprogram'];
     $contact = trim($_POST['txtcontact']);
     $dob     = $_POST['txtdob'];
 
-    if (empty($idnum)||empty($fname)||empty($lname)||empty($program)) {
-        $error = 'ID Number, First Name, Last Name and Program are required.';
+    if (empty($idnum)||empty($fname)||empty($lname)) {
+        $error = 'ID Number, First Name, and Last Name are required.';
     } else {
-        $stmt = $connection->prepare("INSERT INTO tblstudent(idnumber,firstname,lastname,gender,program,contactno,dob) VALUES(?,?,?,?,?,?,?)");
-        $stmt->bind_param("sssssss", $idnum,$fname,$lname,$gender,$program,$contact,$dob);
+        $stmt = $connection->prepare("INSERT INTO tblstudent(idnumber,firstname,lastname,contactno,dob) VALUES(?,?,?,?,?)");
+        $stmt->bind_param("sssss", $idnum,$fname,$lname,$contact,$dob);
         if ($stmt->execute()) {
             $_SESSION['flash'] = ['type'=>'success','msg'=>"Student $fname $lname added successfully."];
             header('Location: dashboard.php'); exit;
@@ -54,28 +50,6 @@ require_once 'includes/header.php';
     <form method="post" id="addForm" novalidate>
         <div class="form-row">
             <div class="form-group">
-                <label for="txtidnumber">ID Number *</label>
-                <div class="input-wrap">
-                    <i class="input-icon fas fa-id-card"></i>
-                    <input type="text" id="txtidnumber" name="txtidnumber" class="has-icon"
-                           placeholder="e.g. 2024-00001"
-                           value="<?php echo isset($_POST['txtidnumber'])?htmlspecialchars($_POST['txtidnumber']):''; ?>" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="txtgender">Gender</label>
-                <div class="input-wrap">
-                    <i class="input-icon fas fa-venus-mars"></i>
-                    <select id="txtgender" name="txtgender" class="has-icon">
-                        <option value="">-- Select --</option>
-                        <option value="Male"   <?php echo (isset($_POST['txtgender'])&&$_POST['txtgender']==='Male')?'selected':''; ?>>Male</option>
-                        <option value="Female" <?php echo (isset($_POST['txtgender'])&&$_POST['txtgender']==='Female')?'selected':''; ?>>Female</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
                 <label for="txtfirstname">First Name *</label>
                 <div class="input-wrap">
                     <i class="input-icon fas fa-user"></i>
@@ -96,15 +70,12 @@ require_once 'includes/header.php';
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="txtprogram">Program *</label>
+                <label for="txtidnumber">ID Number *</label>
                 <div class="input-wrap">
-                    <i class="input-icon fas fa-graduation-cap"></i>
-                    <select id="txtprogram" name="txtprogram" class="has-icon" required>
-                        <option value="">-- Select Program --</option>
-                        <?php foreach($programs as $p): ?>
-                        <option value="<?php echo $p; ?>" <?php echo (isset($_POST['txtprogram'])&&$_POST['txtprogram']===$p)?'selected':''; ?>><?php echo $p; ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <i class="input-icon fas fa-id-card"></i>
+                    <input type="text" id="txtidnumber" name="txtidnumber" class="has-icon"
+                           placeholder="e.g. 2024-00001"
+                           value="<?php echo isset($_POST['txtidnumber'])?htmlspecialchars($_POST['txtidnumber']):''; ?>" required>
                 </div>
             </div>
             <div class="form-group">
@@ -116,13 +87,15 @@ require_once 'includes/header.php';
                 </div>
             </div>
         </div>
-        <div class="form-group">
-            <label for="txtcontact">Contact Number</label>
-            <div class="input-wrap">
-                <i class="input-icon fas fa-phone"></i>
-                <input type="text" id="txtcontact" name="txtcontact" class="has-icon"
-                       placeholder="09XXXXXXXXX"
-                       value="<?php echo isset($_POST['txtcontact'])?htmlspecialchars($_POST['txtcontact']):''; ?>">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="txtcontact">Contact Number</label>
+                <div class="input-wrap">
+                    <i class="input-icon fas fa-phone"></i>
+                    <input type="text" id="txtcontact" name="txtcontact" class="has-icon"
+                           placeholder="09XXXXXXXXX"
+                           value="<?php echo isset($_POST['txtcontact'])?htmlspecialchars($_POST['txtcontact']):''; ?>">
+                </div>
             </div>
         </div>
 

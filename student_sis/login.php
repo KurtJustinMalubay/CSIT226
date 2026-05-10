@@ -12,13 +12,13 @@ if (isset($_POST['btnLogin'])) {
     if (empty($uname) || empty($pwd)) {
         $error = 'Please fill in all fields.';
     } else {
-        $stmt = $connection->prepare("SELECT * FROM tbluseraccount WHERE username = ?");
+        $stmt = $connection->prepare("SELECT * FROM `user` WHERE username = ?");
         $stmt->bind_param("s", $uname);
         $stmt->execute();
         $result = $stmt->get_result();
 
         if ($result->num_rows === 0) {
-            $error = 'Username not found. Please check and try again.';
+            $error = 'Student ID not found. Please check and try again.';
         } else {
             $row = $result->fetch_assoc();
             if (!password_verify($pwd, $row['password'])) {
@@ -48,11 +48,11 @@ require_once 'includes/header.php';
 
     <form method="post" id="loginForm" novalidate>
         <div class="form-group">
-            <label for="txtusername"><i class="fas fa-user"></i> Username</label>
+            <label for="txtusername"><i class="fas fa-user"></i> Student ID</label>
             <div class="input-wrap">
                 <i class="input-icon fas fa-user"></i>
                 <input type="text" id="txtusername" name="txtusername" class="has-icon"
-                       placeholder="Enter your username"
+                       placeholder="Enter your student ID"
                        value="<?php echo isset($_POST['txtusername']) ? htmlspecialchars($_POST['txtusername']) : ''; ?>"
                        required autocomplete="username">
             </div>
