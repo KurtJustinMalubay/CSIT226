@@ -1,16 +1,40 @@
 <?php
+/**
+ * Student Dashboard
+ * 
+ * The main landing page for students. It displays campus-wide statistics,
+ * recently reported items, and provides entry points for reporting lost 
+ * or found items.
+ */
+
 session_start();
-if (!isset($_SESSION['uid'])) { header('Location: login.php'); exit; }
+
+// Security check: Ensure user is authenticated
+if (!isset($_SESSION['uid'])) { 
+    header('Location: login.php'); 
+    exit; 
+}
+
 include 'connect.php';
 $title = 'Dashboard';
 
-// Stats for Campus Overview
+/**
+ * Statistics for Campus Overview
+ * 
+ * Aggregates data from the item_report and claim_request tables 
+ * to show a snapshot of campus activity.
+ */
 $total_lost = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report WHERE reportType='Lost'"))['c'] ?? 0;
 $total_found = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report WHERE reportType='Found'"))['c'] ?? 0;
 $successful_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM claim_request WHERE claimStatus='Approved'"))['c'] ?? 0;
 $pending_actions = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM claim_request WHERE claimStatus='Pending'"))['c'] ?? 0;
 
-// Recent Items
+/**
+ * Recent Items Feed
+ * 
+ * Fetches the most recently reported items (Lost or Found) 
+ * to display on the dashboard grid.
+ */
 $recent_items = mysqli_query($connection, "SELECT * FROM item_report ORDER BY reportId DESC LIMIT 6");
 
 require_once 'includes/header.php';

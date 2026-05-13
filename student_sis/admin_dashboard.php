@@ -1,10 +1,23 @@
 <?php
+/**
+ * Administrative Dashboard
+ * 
+ * This page provides a high-level overview of the system for administrators.
+ * It includes real-time statistics, quick-access links to report management,
+ * and a directory for managing student records.
+ */
+
 session_start();
 if (!isset($_SESSION['uid']) || !$_SESSION['isAdmin']) { header('Location: login.php'); exit; }
 include 'connect.php';
 $title = 'Admin Dashboard';
 
-// Handle Claim Actions (Approve/Deny)
+/**
+ * Handle Claim Actions (Approve/Deny)
+ * 
+ * Process requests from students who have claimed an item.
+ * Approving a claim marks the item as 'Returned' and logs the action.
+ */
 if (isset($_POST['action_claim'])) {
     $claimId = intval($_POST['claimId']);
     $action = $_POST['action_claim']; // 'Approve' or 'Deny'
@@ -50,7 +63,11 @@ if (isset($_POST['action_claim'])) {
     exit;
 }
 
-// Stats
+/**
+ * Statistics & Overview Data
+ * 
+ * Fetches real-time counts to populate the dashboard stats cards.
+ */
 $total_reports = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report"))['c'] ?? 0;
 $pending_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM claim_request WHERE claimStatus='Pending'"))['c'] ?? 0;
 $resolved_cases = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report WHERE currentStatus IN ('Returned', 'Resolved')"))['c'] ?? 0;
@@ -141,6 +158,9 @@ require_once 'includes/header.php';
         </thead>
         <tbody>
         <?php 
+        /**
+         * Fetch and display all registered students
+         */
         $students_q = "SELECT u.*, s.course, s.contactNo FROM user u JOIN student s ON u.uId = s.studId WHERE u.isStudent = 1 ORDER BY u.fullName ASC";
         $students = mysqli_query($connection, $students_q);
         if ($students->num_rows === 0): 

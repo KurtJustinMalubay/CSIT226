@@ -1,44 +1,69 @@
 <?php
+/**
+ * Student Registration Handler (Admin Only)
+ * 
+ * This script allows administrators to manually register a new student.
+ * It performs a dual-table insertion (User and Student) within a transaction 
+ * to ensure data integrity.
+ */
+
 session_start();
-if (!isset($_SESSION['username'])) { header('Location: login.php'); exit; }
+
+// Security check: Only logged-in users (admins) should access this
+if (!isset($_SESSION['username'])) { 
+    header('Location: login.php'); 
+    exit; 
+}
+
 include 'connect.php';
 $title = 'Add Student';
 $error = '';
 
+/**
+ * Handle Form Submission
+ */
 if (isset($_POST['btnAdd'])) {
+    // Collect and sanitize input
     $idnum   = trim($_POST['txtidnumber']);
     $fname   = trim($_POST['txtfirstname']);
     $lname   = trim($_POST['txtlastname']);
     $contact = trim($_POST['txtcontact']);
     $dob     = $_POST['txtdob'];
 
-    if (empty($idnum)||empty($fname)||empty($lname)) {
+    // Basic validation: ensure required fields are present
+    if (empty($idnum) || empty($fname) || empty($lname)) {
         $error = 'ID Number, First Name, and Last Name are required.';
     } else {
-        // First, check if user exists or create a placeholder user
-        // For simplicity in this 'add record' context, we'll assume we're adding to the student table
-        // But the schema requires a parent User. 
-        // We'll create a user account for them as well.
-        $uId = 'user_' . uniqid();
+        /**
+         * Dual-Table Insertion Logic
+         * 
+         * Every student record must have a corresponding entry in the 'user' table 
+         * for authentication purposes.
+         */
+        $uId = 'user_' . uniqid(); // Generate a unique identifier for the user
         $fullName = $fname . ' ' . $lname;
-        $username = strtolower($fname . $idnum); // Placeholder username
-        $password = password_hash('password123', PASSWORD_DEFAULT); // Default password
+        $username = strtolower($fname . $idnum); // Default username format: first name + ID
+        $password = password_hash('password123', PASSWORD_DEFAULT); // Default secure password
         
         $connection->begin_transaction();
         try {
+            // 1. Create the User account
             $stmt1 = $connection->prepare("INSERT INTO user (uId, username, fullName, email, password, universityId, isStudent) VALUES (?, ?, ?, ?, ?, ?, 1)");
             $email = strtolower($fname . '.' . $lname . '@example.com');
             $stmt1->bind_param("ssssss", $uId, $username, $fullName, $email, $password, $idnum);
             $stmt1->execute();
 
+            // 2. Create the specific Student profile
             $stmt2 = $connection->prepare("INSERT INTO student (studId, course, contactNo, dob) VALUES (?, 'N/A', ?, ?)");
-            $stmt2->bind_param("sss", $uId, $idnum, $contact, $dob); // Using idnum as placeholder for course if not provided
+            $stmt2->bind_param("sss", $uId, $idnum, $contact, $dob); 
             $stmt2->execute();
 
             $connection->commit();
             $_SESSION['flash'] = ['type'=>'success','msg'=>"Student $fullName added successfully."];
-            header('Location: dashboard.php'); exit;
+            header('Location: dashboard.php'); 
+            exit;
         } catch (Exception $e) {
+            // Rollback changes if any part of the transaction fails
             $connection->rollback();
             $error = 'Failed to save record: ' . $e->getMessage();
         }
