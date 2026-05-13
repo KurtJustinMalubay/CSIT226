@@ -2,29 +2,29 @@
 session_start();
 if (isset($_SESSION['username'])) { header('Location: dashboard.php'); exit; }
 include 'connect.php';
-$title = 'Login';
+$title = 'Admin Login';
 $error = '';
 
 if (isset($_POST['btnLogin'])) {
-    $uname = trim($_POST['txtusername']);
+    $uniId = trim($_POST['txtusername']);
     $pwd   = $_POST['txtpassword'];
 
-    if (empty($uname) || empty($pwd)) {
+    if (empty($uniId) || empty($pwd)) {
         $error = 'Please fill in all fields.';
     } else {
-        $stmt = $connection->prepare("SELECT * FROM `user` WHERE username = ?");
-        $stmt->bind_param("s", $uname);
+        $stmt = $connection->prepare("SELECT * FROM `user` WHERE universityId = ? AND isAdmin = 1");
+        $stmt->bind_param("s", $uniId);
         $stmt->execute();
         $result = $stmt->get_result();
 
         if ($result->num_rows === 0) {
-            $error = 'Student ID not found. Please check and try again.';
+            $error = 'University ID not found or not an admin. Please check and try again.';
         } else {
             $row = $result->fetch_assoc();
             if (!password_verify($pwd, $row['password'])) {
                 $error = 'Incorrect password. Please try again.';
             } else {
-                $_SESSION['username'] = $row['username'];
+                $_SESSION['username'] = $row['universityId'];
                 header('Location: dashboard.php');
                 exit;
             }
@@ -38,8 +38,8 @@ require_once 'includes/header.php';
 <div class="form-card">
     <div class="form-header">
         <div class="form-icon"><i class="fas fa-right-to-bracket"></i></div>
-        <h1>Welcome Back</h1>
-        <p>Sign in to your account to continue</p>
+        <h1>Admin Login</h1>
+        <p>Sign in to your admin account to access the portal</p>
     </div>
 
     <?php if ($error): ?>
@@ -48,11 +48,11 @@ require_once 'includes/header.php';
 
     <form method="post" id="loginForm" novalidate>
         <div class="form-group">
-            <label for="txtusername"><i class="fas fa-user"></i> Student ID</label>
+            <label for="txtusername"><i class="fas fa-id-badge"></i> University ID</label>
             <div class="input-wrap">
-                <i class="input-icon fas fa-user"></i>
+                <i class="input-icon fas fa-id-badge"></i>
                 <input type="text" id="txtusername" name="txtusername" class="has-icon"
-                       placeholder="Enter your student ID"
+                       placeholder="Enter your university ID"
                        value="<?php echo isset($_POST['txtusername']) ? htmlspecialchars($_POST['txtusername']) : ''; ?>"
                        required autocomplete="username">
             </div>

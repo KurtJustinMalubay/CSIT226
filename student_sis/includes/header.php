@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Student Information System - Manage student records efficiently">
-    <title>SIS &mdash; <?php echo isset($title) ? htmlspecialchars($title) : 'Student Information System'; ?></title>
+    <meta name="description" content="Admin Management Portal - Manage administrators and system access efficiently">
+    <title>AMP &mdash; <?php echo isset($title) ? htmlspecialchars($title) : 'Admin Management Portal'; ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,9 +17,9 @@
     <div class="nav-container">
         <a href="index.php" class="nav-brand">
             <div class="nav-logo">
-                <i class="fas fa-graduation-cap"></i>
+                <i class="fas fa-users-gear"></i>
             </div>
-            <span class="nav-title">SIS<span class="nav-subtitle">Student Portal</span></span>
+            <span class="nav-title">AMP<span class="nav-subtitle">Admin Portal</span></span>
         </a>
         <div class="nav-links">
             <a href="index.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : ''; ?>">
@@ -30,7 +30,7 @@
                 <i class="fas fa-table-columns"></i> Dashboard
             </a>
             <a href="addrecord.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'addrecord.php' ? 'active' : ''; ?>">
-                <i class="fas fa-user-plus"></i> Add Student
+                <i class="fas fa-user-plus"></i> Add Admin
             </a>
             <div class="nav-user">
                 <i class="fas fa-circle-user"></i>
@@ -56,7 +56,7 @@
         <a href="index.php" class="nav-link"><i class="fas fa-home"></i> Home</a>
         <?php if (isset($_SESSION['username'])): ?>
         <a href="dashboard.php" class="nav-link"><i class="fas fa-table-columns"></i> Dashboard</a>
-        <a href="addrecord.php" class="nav-link"><i class="fas fa-user-plus"></i> Add Student</a>
+        <a href="addrecord.php" class="nav-link"><i class="fas fa-user-plus"></i> Add Admin</a>
         <a href="logout.php" class="nav-link"><i class="fas fa-right-from-bracket"></i> Logout</a>
         <?php else: ?>
         <a href="login.php" class="nav-link"><i class="fas fa-right-to-bracket"></i> Login</a>

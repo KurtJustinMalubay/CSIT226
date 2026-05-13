@@ -2,49 +2,70 @@
 session_start();
 if (isset($_SESSION['username'])) { header('Location: dashboard.php'); exit; }
 include 'connect.php';
-$title = 'Register';
+$title = 'Admin Portal';
 $error = '';
 $success = '';
 
 if (isset($_POST['btnRegister'])) {
-    $fname  = trim($_POST['txtfirstname']);
-    $lname  = trim($_POST['txtlastname']);
-    $email  = trim($_POST['txtemail']);
-    $uname  = trim($_POST['txtusername']);
-    $pword  = $_POST['txtpassword'];
-    $cpword = $_POST['txtconfirmpassword'];
+    $fname    = trim($_POST['txtfirstname']);
+    $lname    = trim($_POST['txtlastname']);
+    $email    = trim($_POST['txtemail']);
+    $uniId    = trim($_POST['txtusername']);
+    $contact  = trim($_POST['txtcontactNum']);
+    $password = $_POST['txtpassword'];
+    $cpword   = $_POST['txtconfirmpassword'];
 
-    if (empty($fname)||empty($lname)||empty($email)||empty($uname)||empty($pword)) {
+    if (empty($fname) || empty($lname) || empty($email) || empty($uniId) || empty($contact) || empty($password)) {
         $error = 'All fields are required.';
-    } elseif ($pword !== $cpword) {
+    } elseif ($password !== $cpword) {
         $error = 'Passwords do not match.';
-    } elseif (strlen($pword) < 6) {
+    } elseif (strlen($password) < 6) {
         $error = 'Password must be at least 6 characters.';
     } else {
-        // Check username uniqueness
-        $chk = $connection->prepare("SELECT uid FROM `user` WHERE username = ?");
-        $chk->bind_param("s", $uname);
+        $chk = $connection->prepare("SELECT uid FROM `user` WHERE universityId = ?");
+        $chk->bind_param("s", $uniId);
         $chk->execute();
         $chk->store_result();
 
         if ($chk->num_rows > 0) {
-            $error = 'Student ID already exists. Please choose another.';
+            $error = 'University ID already exists. Please choose another.';
         } else {
-            $hashed = password_hash($pword, PASSWORD_DEFAULT);
-            $fullName = trim($fname . ' ' . $lname);
-            $isAdmin = 0;
-            $isStudent = 1;
-            $isFaculty = 0;
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $isAdmin = 1;
+            $isStudent = 0;
+            $role = 'Super Admin';
 
-            $s = $connection->prepare("INSERT INTO `user` (fullName, email, universityId, username, password, isAdmin, isStudent, isFaculty) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $s->bind_param("sssssiii", $fullName, $email, $uname, $uname, $hashed, $isAdmin, $isStudent, $isFaculty);
+            $connection->begin_transaction();
+            $s = $connection->prepare("INSERT INTO `user` (fname, lname, email, contactNum, universityId, isAdmin, isStudent, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $s->bind_param("sssssiis", $fname, $lname, $email, $contact, $uniId, $isAdmin, $isStudent, $hashed);
+
             if ($s->execute()) {
-                $success = 'Account created successfully! You can now log in.';
+                $new_id = $connection->insert_id;
+                $s->close();
+
+                if ($new_id > 0) {
+                    $s2 = $connection->prepare("INSERT INTO admin_staff (adId, adminRole) VALUES (?, ?) ON DUPLICATE KEY UPDATE adminRole = VALUES(adminRole)");
+                    $s2->bind_param("is", $new_id, $role);
+
+                    if ($s2->execute()) {
+                        $connection->commit();
+                        $success = 'Admin account created successfully! You can now log in.';
+                    } else {
+                        $connection->rollback();
+                        $error = 'Admin staff registration failed: ' . $connection->error;
+                    }
+                    $s2->close();
+                } else {
+                    $connection->rollback();
+                    $error = 'Unable to determine the new admin user ID.';
+                }
             } else {
+                $connection->rollback();
                 $error = 'Registration failed: ' . $connection->error;
+                $s->close();
             }
-            $s->close();
         }
+
         $chk->close();
     }
 }
@@ -54,8 +75,8 @@ require_once 'includes/header.php';
 <div class="form-card form-card-wide">
     <div class="form-header">
         <div class="form-icon"><i class="fas fa-user-plus"></i></div>
-        <h1>Create Account</h1>
-        <p>Fill in your details to register a new account</p>
+        <h1>Create Admin Account</h1>
+        <p>Fill in the details to register a new admin user</p>
     </div>
 
     <?php if ($error): ?>
@@ -99,13 +120,24 @@ require_once 'includes/header.php';
                 </div>
             </div>
             <div class="form-group">
-                <label for="txtusername">Student ID</label>
+                <label for="txtusername">University ID</label>
                 <div class="input-wrap">
-                    <i class="input-icon fas fa-at"></i>
+                    <i class="input-icon fas fa-id-badge"></i>
                     <input type="text" id="txtusername" name="txtusername" class="has-icon"
-                           placeholder="Enter your student ID" value="<?php echo isset($_POST['txtusername']) ? htmlspecialchars($_POST['txtusername']) : ''; ?>" required>
+                           placeholder="Enter your university ID" value="<?php echo isset($_POST['txtusername']) ? htmlspecialchars($_POST['txtusername']) : ''; ?>" required>
                 </div>
                 <div class="form-error" id="err_uname"></div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="txtcontactNum">Contact Number</label>
+                <div class="input-wrap">
+                    <i class="input-icon fas fa-phone"></i>
+                    <input type="text" id="txtcontactNum" name="txtcontactNum" class="has-icon"
+                           placeholder="09XXXXXXXXX" value="<?php echo isset($_POST['txtcontactNum']) ? htmlspecialchars($_POST['txtcontactNum']) : ''; ?>" required>
+                </div>
             </div>
         </div>
 

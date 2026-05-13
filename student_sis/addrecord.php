@@ -5,25 +5,104 @@ include 'connect.php';
 $title = 'Add Student';
 $error = '';
 
+function lf_student_pick_column(mysqli $connection, string $table, array $candidates): ?string {
+    $schema = mysqli_fetch_assoc(mysqli_query($connection, "SELECT DATABASE() AS db"))['db'] ?? null;
+    if (!$schema) return null;
+
+    $stmt = $connection->prepare(
+        "SELECT COUNT(*) AS c
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?"
+    );
+
+    foreach ($candidates as $col) {
+        $stmt->bind_param("sss", $schema, $table, $col);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $row = $res ? $res->fetch_assoc() : null;
+        if (($row['c'] ?? 0) > 0) { $stmt->close(); return $col; }
+    }
+    $stmt->close();
+    return null;
+}
+
+function lf_has_column(mysqli $connection, string $table, string $column): bool {
+    return lf_student_pick_column($connection, $table, [$column]) !== null;
+}
+
 if (isset($_POST['btnAdd'])) {
     $idnum   = trim($_POST['txtidnumber']);
     $fname   = trim($_POST['txtfirstname']);
     $lname   = trim($_POST['txtlastname']);
     $contact = trim($_POST['txtcontact']);
-    $dob     = $_POST['txtdob'];
+    $course  = trim($_POST['txtcourse'] ?? '');
+    $yearlvl = trim($_POST['txtyearlvl'] ?? '');
 
-    if (empty($idnum)||empty($fname)||empty($lname)) {
-        $error = 'ID Number, First Name, and Last Name are required.';
+    if (empty($idnum)||empty($fname)||empty($lname)||empty($course)||empty($yearlvl)) {
+        $error = 'ID Number, First Name, Last Name, Course and Year Level are required.';
     } else {
-        $stmt = $connection->prepare("INSERT INTO tblstudent(idnumber,firstname,lastname,contactno,dob) VALUES(?,?,?,?,?)");
-        $stmt->bind_param("sssss", $idnum,$fname,$lname,$contact,$dob);
-        if ($stmt->execute()) {
-            $_SESSION['flash'] = ['type'=>'success','msg'=>"Student $fname $lname added successfully."];
-            header('Location: dashboard.php'); exit;
+        $studentTable = "student";
+        $userTable = "user";
+
+        $userIdCol      = lf_student_pick_column($connection, $userTable, ["uid","id"]);
+        $userFnameCol   = lf_student_pick_column($connection, $userTable, ["fname","firstname","first_name"]);
+        $userLnameCol   = lf_student_pick_column($connection, $userTable, ["lname","lastname","last_name"]);
+        $userContactCol = lf_student_pick_column($connection, $userTable, ["contactNum","contactno","contact"]);
+        $userUniCol     = lf_student_pick_column($connection, $userTable, ["universityId","studId","idnumber"]);
+        $userEmailCol   = lf_student_pick_column($connection, $userTable, ["email","emailadd"]);
+        $userPassCol    = lf_student_pick_column($connection, $userTable, ["password"]);
+        $userAdminCol   = lf_student_pick_column($connection, $userTable, ["isAdmin"]);
+        $userStudentCol = lf_student_pick_column($connection, $userTable, ["isStudent"]);
+
+        $studUserLinkCol = lf_student_pick_column($connection, $studentTable, ["studId","studentId","uid","userId"]);
+        $studCourseCol   = lf_student_pick_column($connection, $studentTable, ["course","program"]);
+        $studYearCol     = lf_student_pick_column($connection, $studentTable, ["yearLevel","yearlvl","year_level","year"]);
+
+        if (!$userIdCol || !$userFnameCol || !$userLnameCol || !$studUserLinkCol || !$studCourseCol || !$studYearCol) {
+            $error = "Missing required columns in `user`/`student` tables. Please verify schema.";
         } else {
-            $error = 'Failed to save record. Please try again.';
+            $connection->begin_transaction();
+            try {
+                // 1) Create parent user record (student identity fields live here)
+                $uCols = [$userFnameCol, $userLnameCol];
+                $uVals = [$fname, $lname];
+                $uTypes = "ss";
+
+                if ($userContactCol) { $uCols[] = $userContactCol; $uVals[] = $contact; $uTypes .= "s"; }
+                if ($userUniCol)     { $uCols[] = $userUniCol;     $uVals[] = $idnum;   $uTypes .= "s"; }
+                if ($userEmailCol)   { $uCols[] = $userEmailCol;   $uVals[] = $idnum.'@student.local'; $uTypes .= "s"; }
+                if ($userPassCol)    { $uCols[] = $userPassCol;    $uVals[] = password_hash('student123', PASSWORD_DEFAULT); $uTypes .= "s"; }
+                if ($userAdminCol)   { $uCols[] = $userAdminCol;   $uVals[] = 0; $uTypes .= "i"; }
+                if ($userStudentCol) { $uCols[] = $userStudentCol; $uVals[] = 1; $uTypes .= "i"; }
+
+                $uColList = implode(",", array_map(fn($c) => "`$c`", $uCols));
+                $uPlaceholders = rtrim(str_repeat("?,", count($uCols)), ",");
+                $uStmt = $connection->prepare("INSERT INTO `$userTable`($uColList) VALUES($uPlaceholders)");
+                $uStmt->bind_param($uTypes, ...$uVals);
+                $uStmt->execute();
+                $newUserId = $connection->insert_id;
+                $uStmt->close();
+
+                // 2) Create student subtable row (student-only fields)
+                $sCols = [$studUserLinkCol, $studCourseCol, $studYearCol];
+                $sVals = [$newUserId, $course, $yearlvl];
+                $sTypes = "iss";
+
+                $sColList = implode(",", array_map(fn($c) => "`$c`", $sCols));
+                $sPlaceholders = rtrim(str_repeat("?,", count($sCols)), ",");
+                $sStmt = $connection->prepare("INSERT INTO `$studentTable`($sColList) VALUES($sPlaceholders)");
+                $sStmt->bind_param($sTypes, ...$sVals);
+                $sStmt->execute();
+                $sStmt->close();
+
+                $connection->commit();
+                $_SESSION['flash'] = ['type'=>'success','msg'=>"Student $fname $lname added successfully."];
+                header('Location: dashboard.php'); exit;
+            } catch (Throwable $e) {
+                $connection->rollback();
+                $error = 'Failed to save record. ' . $e->getMessage();
+            }
         }
-        $stmt->close();
     }
 }
 require_once 'includes/header.php';
@@ -79,22 +158,38 @@ require_once 'includes/header.php';
                 </div>
             </div>
             <div class="form-group">
-                <label for="txtdob">Date of Birth</label>
-                <div class="input-wrap">
-                    <i class="input-icon fas fa-calendar"></i>
-                    <input type="date" id="txtdob" name="txtdob" class="has-icon"
-                           value="<?php echo isset($_POST['txtdob'])?htmlspecialchars($_POST['txtdob']):''; ?>">
-                </div>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
                 <label for="txtcontact">Contact Number</label>
                 <div class="input-wrap">
                     <i class="input-icon fas fa-phone"></i>
                     <input type="text" id="txtcontact" name="txtcontact" class="has-icon"
                            placeholder="09XXXXXXXXX"
                            value="<?php echo isset($_POST['txtcontact'])?htmlspecialchars($_POST['txtcontact']):''; ?>">
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="txtcourse">Course *</label>
+                <div class="input-wrap">
+                    <i class="input-icon fas fa-graduation-cap"></i>
+                    <input type="text" id="txtcourse" name="txtcourse" class="has-icon"
+                           placeholder="e.g. BSIT"
+                           value="<?php echo isset($_POST['txtcourse'])?htmlspecialchars($_POST['txtcourse']):''; ?>" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="txtyearlvl">Year Level *</label>
+                <div class="input-wrap">
+                    <i class="input-icon fas fa-layer-group"></i>
+                    <select id="txtyearlvl" name="txtyearlvl" class="has-icon" required>
+                        <?php $yl = $_POST['txtyearlvl'] ?? ''; ?>
+                        <option value="">-- Select Year Level --</option>
+                        <option value="1" <?php echo ($yl==='1')?'selected':''; ?>>1</option>
+                        <option value="2" <?php echo ($yl==='2')?'selected':''; ?>>2</option>
+                        <option value="3" <?php echo ($yl==='3')?'selected':''; ?>>3</option>
+                        <option value="4" <?php echo ($yl==='4')?'selected':''; ?>>4</option>
+                        <option value="5" <?php echo ($yl==='5')?'selected':''; ?>>5</option>
+                    </select>
                 </div>
             </div>
         </div>
