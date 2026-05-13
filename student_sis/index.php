@@ -7,6 +7,10 @@ require_once 'includes/header.php';
 // Get student count for stats
 $count_res = mysqli_query($connection, "SELECT COUNT(*) as total FROM student");
 $total_students = $count_res ? mysqli_fetch_assoc($count_res)['total'] : 0;
+
+// Get program count for stats (distinct courses in student table)
+$prog_res = mysqli_query($connection, "SELECT COUNT(DISTINCT course) as total FROM student");
+$total_programs = $prog_res ? mysqli_fetch_assoc($prog_res)['total'] : 0;
 ?>
 
 <section class="hero">
@@ -14,7 +18,7 @@ $total_students = $count_res ? mysqli_fetch_assoc($count_res)['total'] : 0;
     <h1>Manage Student Records<br>Efficiently &amp; Securely</h1>
     <p>A modern platform to register, track, and manage all your student information in one place.</p>
     <div class="hero-actions">
-        <?php if (isset($_SESSION['username'])): ?>
+        <?php if (isset($_SESSION['uid'])): ?>
             <a href="dashboard.php" class="btn btn-primary btn-lg"><i class="fas fa-table-columns"></i> Go to Dashboard</a>
             <a href="addrecord.php" class="btn btn-outline btn-lg"><i class="fas fa-user-plus"></i> Add Student</a>
         <?php else: ?>

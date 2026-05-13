@@ -1,6 +1,11 @@
 <?php
 session_start();
-if (!isset($_SESSION['uid']) || !$_SESSION['isAdmin']) { header('Location: ../student_sis/login.php'); exit; }
+// Check if user is logged in and is an admin
+if (!isset($_SESSION['uid']) || !$_SESSION['isAdmin']) { 
+    header('Location: ../student_sis/login.php'); 
+    exit; 
+}
+
 include '../student_sis/connect.php';
 $title = 'Admin Dashboard';
 
@@ -11,7 +16,7 @@ if (isset($_POST['action_claim'])) {
     $adminId = $_SESSION['uid'];
     
     // Get claim and report details
-    $cStmt = $connection->prepare("SELECT reportId FROM Claim_Request WHERE claimId = ?");
+    $cStmt = $connection->prepare("SELECT reportId FROM claim_request WHERE claimId = ?");
     $cStmt->bind_param("i", $claimId);
     $cStmt->execute();
     $cRes = $cStmt->get_result();
@@ -23,21 +28,21 @@ if (isset($_POST['action_claim'])) {
         try {
             if ($action === 'Approve') {
                 // Update claim status
-                $connection->query("UPDATE Claim_Request SET claimStatus='Approved', approveAdminId='$adminId' WHERE claimId=$claimId");
+                $connection->query("UPDATE claim_request SET claimStatus='Approved', approveAdminId='$adminId' WHERE claimId=$claimId");
                 
                 // Get old status of report
-                $oldStatusRes = $connection->query("SELECT currentStatus FROM Item_Report WHERE reportId=$reportId");
+                $oldStatusRes = $connection->query("SELECT currentStatus FROM item_report WHERE reportId=$reportId");
                 $oldStatus = $oldStatusRes->fetch_assoc()['currentStatus'];
                 
                 // Update report status
-                $connection->query("UPDATE Item_Report SET currentStatus='Returned' WHERE reportId=$reportId");
+                $connection->query("UPDATE item_report SET currentStatus='Returned' WHERE reportId=$reportId");
                 
                 // Insert Audit Log
-                $connection->query("INSERT INTO Audit_Log (reportId, adminId, oldStatus, newStatus) VALUES ($reportId, '$adminId', '$oldStatus', 'Returned')");
+                $connection->query("INSERT INTO audit_log (reportId, adminId, oldStatus, newStatus) VALUES ($reportId, '$adminId', '$oldStatus', 'Returned')");
                 
                 $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Claim Approved and Item marked as Returned.'];
             } elseif ($action === 'Deny') {
-                $connection->query("UPDATE Claim_Request SET claimStatus='Denied', approveAdminId='$adminId' WHERE claimId=$claimId");
+                $connection->query("UPDATE claim_request SET claimStatus='Denied', approveAdminId='$adminId' WHERE claimId=$claimId");
                 $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Claim has been Denied.'];
             }
             $connection->commit();
@@ -51,23 +56,23 @@ if (isset($_POST['action_claim'])) {
 }
 
 // Stats
-$total_reports = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report"))['c'] ?? 0;
-$pending_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Claim_Request WHERE claimStatus='Pending'"))['c'] ?? 0;
-$resolved_cases = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report WHERE currentStatus IN ('Returned', 'Resolved')"))['c'] ?? 0;
+$total_reports = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report"))['c'] ?? 0;
+$pending_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM claim_request WHERE claimStatus='Pending'"))['c'] ?? 0;
+$resolved_cases = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report WHERE currentStatus IN ('Returned', 'Resolved')"))['c'] ?? 0;
 
 // Fetch Pending Claims
 $claims_q = "SELECT c.*, i.itemName, u.fullName as claimantName 
-             FROM Claim_Request c 
-             JOIN Item_Report i ON c.reportId = i.reportId 
-             JOIN User u ON c.claimantId = u.uId 
+             FROM claim_request c 
+             JOIN item_report i ON c.reportId = i.reportId 
+             JOIN user u ON c.claimantId = u.uId 
              WHERE c.claimStatus = 'Pending' 
              ORDER BY c.claimDate ASC";
 $claims = mysqli_query($connection, $claims_q);
 
 // Fetch All Items
 $items_q = "SELECT i.*, u.fullName as reporterName 
-            FROM Item_Report i 
-            JOIN User u ON i.reporterId = u.uId 
+            FROM item_report i 
+            JOIN user u ON i.reporterId = u.uId 
             ORDER BY i.created_at DESC";
 $items = mysqli_query($connection, $items_q);
 
@@ -80,7 +85,7 @@ require_once '../student_sis/includes/header.php';
 <div class="page-header">
     <div class="page-title">
         <div class="breadcrumb">
-            <a href="index.php">Home</a>
+            <a href="../student_sis/index.php">Home</a>
             <span class="breadcrumb-sep">/</span>
             <span>Admin Dashboard</span>
         </div>
@@ -153,8 +158,51 @@ require_once '../student_sis/includes/header.php';
     </table>
 </div>
 
+<!-- Manage Students Section -->
+<div class="table-wrap" style="margin-top: 40px;">
+    <div class="table-toolbar">
+        <h3 style="font-size: 18px;"><i class="fas fa-users"></i> Manage Students</h3>
+        <a href="../student_sis/addrecord.php" class="btn btn-primary btn-sm"><i class="fas fa-user-plus"></i> Add New Student</a>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Student ID</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Course/Program</th>
+                <th>Contact</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php 
+        $students_q = "SELECT u.*, s.course, s.contactNo FROM user u JOIN student s ON u.uId = s.studId WHERE u.isStudent = 1 ORDER BY u.fullName ASC";
+        $students = mysqli_query($connection, $students_q);
+        if ($students->num_rows === 0): 
+        ?>
+            <tr><td colspan="6" class="table-empty"><i class="fas fa-users-slash"></i>No students registered yet.</td></tr>
+        <?php else: while ($row = $students->fetch_assoc()): ?>
+            <tr>
+                <td class="td-bold"><?php echo htmlspecialchars($row['universityId']); ?></td>
+                <td><?php echo htmlspecialchars($row['fullName']); ?></td>
+                <td><?php echo htmlspecialchars($row['email']); ?></td>
+                <td><span class="badge badge-program"><?php echo htmlspecialchars($row['course']); ?></span></td>
+                <td><?php echo htmlspecialchars($row['contactNo']); ?></td>
+                <td>
+                    <div style="display: flex; gap: 8px;">
+                        <a href="../student_sis/update.php?uid=<?php echo $row['uId']; ?>" class="btn btn-outline btn-sm"><i class="fas fa-edit"></i> Edit</a>
+                        <a href="delete.php?uid=<?php echo $row['uId']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this student?')"><i class="fas fa-trash"></i> Delete</a>
+                    </div>
+                </td>
+            </tr>
+        <?php endwhile; endif; ?>
+        </tbody>
+    </table>
+</div>
+
 <!-- All Items Section -->
-<div class="table-wrap">
+<div class="table-wrap" style="margin-top: 40px;">
     <div class="table-toolbar">
         <h3 style="font-size: 18px;"><i class="fas fa-list"></i> All Reported Items</h3>
     </div>

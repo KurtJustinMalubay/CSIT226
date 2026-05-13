@@ -11,7 +11,7 @@ if (isset($_POST['action_claim'])) {
     $adminId = $_SESSION['uid'];
     
     // Get claim and report details
-    $cStmt = $connection->prepare("SELECT reportId FROM Claim_Request WHERE claimId = ?");
+    $cStmt = $connection->prepare("SELECT reportId FROM claim_request WHERE claimId = ?");
     $cStmt->bind_param("i", $claimId);
     $cStmt->execute();
     $cRes = $cStmt->get_result();
@@ -23,21 +23,21 @@ if (isset($_POST['action_claim'])) {
         try {
             if ($action === 'Approve') {
                 // Update claim status
-                $connection->query("UPDATE Claim_Request SET claimStatus='Approved', approveAdminId='$adminId' WHERE claimId=$claimId");
+                $connection->query("UPDATE claim_request SET claimStatus='Approved', approveAdminId='$adminId' WHERE claimId=$claimId");
                 
                 // Get old status of report
-                $oldStatusRes = $connection->query("SELECT currentStatus FROM Item_Report WHERE reportId=$reportId");
+                $oldStatusRes = $connection->query("SELECT currentStatus FROM item_report WHERE reportId=$reportId");
                 $oldStatus = $oldStatusRes->fetch_assoc()['currentStatus'];
                 
                 // Update report status
-                $connection->query("UPDATE Item_Report SET currentStatus='Returned' WHERE reportId=$reportId");
+                $connection->query("UPDATE item_report SET currentStatus='Returned' WHERE reportId=$reportId");
                 
                 // Insert Audit Log
-                $connection->query("INSERT INTO Audit_Log (reportId, adminId, oldStatus, newStatus) VALUES ($reportId, '$adminId', '$oldStatus', 'Returned')");
+                $connection->query("INSERT INTO audit_log (reportId, adminId, oldStatus, newStatus) VALUES ($reportId, '$adminId', '$oldStatus', 'Returned')");
                 
                 $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Claim Approved and Item marked as Returned.'];
             } elseif ($action === 'Deny') {
-                $connection->query("UPDATE Claim_Request SET claimStatus='Denied', approveAdminId='$adminId' WHERE claimId=$claimId");
+                $connection->query("UPDATE claim_request SET claimStatus='Denied', approveAdminId='$adminId' WHERE claimId=$claimId");
                 $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Claim has been Denied.'];
             }
             $connection->commit();
@@ -51,25 +51,9 @@ if (isset($_POST['action_claim'])) {
 }
 
 // Stats
-$total_reports = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report"))['c'] ?? 0;
-$pending_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Claim_Request WHERE claimStatus='Pending'"))['c'] ?? 0;
-$resolved_cases = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report WHERE currentStatus IN ('Returned', 'Resolved')"))['c'] ?? 0;
-
-// Fetch Pending Claims
-$claims_q = "SELECT c.*, i.itemName, u.fullName as claimantName 
-             FROM Claim_Request c 
-             JOIN Item_Report i ON c.reportId = i.reportId 
-             JOIN User u ON c.claimantId = u.uId 
-             WHERE c.claimStatus = 'Pending' 
-             ORDER BY c.claimDate ASC";
-$claims = mysqli_query($connection, $claims_q);
-
-// Fetch All Items
-$items_q = "SELECT i.*, u.fullName as reporterName 
-            FROM Item_Report i 
-            JOIN User u ON i.reporterId = u.uId 
-            ORDER BY i.created_at DESC";
-$items = mysqli_query($connection, $items_q);
+$total_reports = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report"))['c'] ?? 0;
+$pending_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM claim_request WHERE claimStatus='Pending'"))['c'] ?? 0;
+$resolved_cases = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report WHERE currentStatus IN ('Returned', 'Resolved')"))['c'] ?? 0;
 
 $flash = isset($_SESSION['flash']) ? $_SESSION['flash'] : null;
 unset($_SESSION['flash']);
@@ -86,6 +70,33 @@ require_once 'includes/header.php';
         </div>
         <h1>Lost & Found Administration</h1>
         <p>Welcome back, <strong><?php echo htmlspecialchars($_SESSION['fullName']); ?></strong></p>
+    </div>
+</div>
+
+<!-- Quick Actions Section -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:40px;">
+    <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+        <div>
+            <div class="feature-icon" style="background:var(--primary-soft); color:var(--primary);"><i class="fas fa-file-invoice"></i></div>
+            <h3 style="margin:16px 0 8px;">Reports & Claims</h3>
+            <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">Process pending claims, update item statuses, and manage the lost and found inventory.</p>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:16px; border-top:1px solid var(--border-color);">
+            <div style="font-size:14px; font-weight:600; color:var(--warning);"><i class="fas fa-clock"></i> <?php echo $pending_claims; ?> Pending Claims</div>
+            <a href="manage_reports.php" class="btn btn-primary btn-sm">Manage Reports</a>
+        </div>
+    </div>
+
+    <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+        <div>
+            <div class="feature-icon" style="background:rgba(34,197,94,0.1); color:var(--success);"><i class="fas fa-users"></i></div>
+            <h3 style="margin:16px 0 8px;">Student Records</h3>
+            <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">Manage student profiles, program details, and contact information for the campus.</p>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:16px; border-top:1px solid var(--border-color);">
+            <div style="font-size:14px; font-weight:600; color:var(--text-muted);">View all enrolled students</div>
+            <a href="addrecord.php" class="btn btn-outline btn-sm">Add New Student</a>
+        </div>
     </div>
 </div>
 
@@ -112,84 +123,42 @@ require_once 'includes/header.php';
 </div>
 <?php endif; ?>
 
-<!-- Pending Claims Section -->
-<div class="table-wrap" style="margin-bottom: 40px;">
+<!-- Manage Students Section -->
+<div class="table-wrap" style="margin-top: 20px;">
     <div class="table-toolbar">
-        <h3 style="font-size: 18px; color: var(--warning);"><i class="fas fa-exclamation-triangle"></i> Action Required: Pending Claims</h3>
+        <h3 style="font-size: 18px;"><i class="fas fa-users-gear"></i> Student Directory</h3>
     </div>
     <table>
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Item ID</th>
-                <th>Item Name</th>
-                <th>Claimant</th>
-                <th>Proof / Description</th>
+                <th>Student ID</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Course/Program</th>
+                <th>Contact</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-        <?php if ($claims->num_rows === 0): ?>
-            <tr><td colspan="6" class="table-empty"><i class="fas fa-check-double" style="color: var(--success);"></i>All claims are processed.</td></tr>
-        <?php else: while ($row = $claims->fetch_assoc()): ?>
+        <?php 
+        $students_q = "SELECT u.*, s.course, s.contactNo FROM user u JOIN student s ON u.uId = s.studId WHERE u.isStudent = 1 ORDER BY u.fullName ASC";
+        $students = mysqli_query($connection, $students_q);
+        if ($students->num_rows === 0): 
+        ?>
+            <tr><td colspan="6" class="table-empty"><i class="fas fa-users-slash"></i>No students registered yet.</td></tr>
+        <?php else: while ($row = $students->fetch_assoc()): ?>
             <tr>
-                <td style="color:var(--text-muted);"><?php echo date('M d, g:i A', strtotime($row['claimDate'])); ?></td>
-                <td class="td-bold">RPT-<?php echo str_pad($row['reportId'], 5, '0', STR_PAD_LEFT); ?></td>
-                <td class="td-bold"><?php echo htmlspecialchars($row['itemName']); ?></td>
-                <td><?php echo htmlspecialchars($row['claimantName']); ?></td>
-                <td style="color:var(--text-soft); font-size: 12px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?php echo htmlspecialchars($row['proofOfOwnership']); ?>">
-                    <?php echo htmlspecialchars($row['proofOfOwnership']); ?>
-                </td>
+                <td class="td-bold"><?php echo htmlspecialchars($row['universityId']); ?></td>
+                <td><?php echo htmlspecialchars($row['fullName']); ?></td>
+                <td><?php echo htmlspecialchars($row['email']); ?></td>
+                <td><span class="badge badge-program"><?php echo htmlspecialchars($row['course']); ?></span></td>
+                <td><?php echo htmlspecialchars($row['contactNo']); ?></td>
                 <td>
-                    <form method="post" style="display: flex; gap: 8px;">
-                        <input type="hidden" name="claimId" value="<?php echo $row['claimId']; ?>">
-                        <button type="submit" name="action_claim" value="Approve" class="btn btn-success btn-sm" onclick="return confirm('Approve this claim and mark item as Returned?')">Approve</button>
-                        <button type="submit" name="action_claim" value="Deny" class="btn btn-danger btn-sm" onclick="return confirm('Deny this claim?')">Deny</button>
-                    </form>
+                    <div style="display: flex; gap: 8px;">
+                        <a href="update.php?uid=<?php echo $row['uId']; ?>" class="btn btn-outline btn-sm"><i class="fas fa-edit"></i> Edit</a>
+                        <a href="delete.php?uid=<?php echo $row['uId']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this student?')"><i class="fas fa-trash"></i> Delete</a>
+                    </div>
                 </td>
-            </tr>
-        <?php endwhile; endif; ?>
-        </tbody>
-    </table>
-</div>
-
-<!-- All Items Section -->
-<div class="table-wrap">
-    <div class="table-toolbar">
-        <h3 style="font-size: 18px;"><i class="fas fa-list"></i> All Reported Items</h3>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>Item ID</th>
-                <th>Type</th>
-                <th>Item Name</th>
-                <th>Location</th>
-                <th>Status</th>
-                <th>Reporter</th>
-                <th>Date Logged</th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php if ($items->num_rows === 0): ?>
-            <tr><td colspan="7" class="table-empty"><i class="fas fa-boxes-slash"></i>No items reported yet.</td></tr>
-        <?php else: while ($row = $items->fetch_assoc()): ?>
-            <tr>
-                <td class="td-bold">RPT-<?php echo str_pad($row['reportId'], 5, '0', STR_PAD_LEFT); ?></td>
-                <td>
-                    <span class="badge <?php echo $row['reportType'] === 'Lost' ? 'badge-male' : 'badge-female'; ?>">
-                        <?php echo htmlspecialchars($row['reportType']); ?>
-                    </span>
-                </td>
-                <td class="td-bold"><?php echo htmlspecialchars($row['itemName']); ?></td>
-                <td><?php echo htmlspecialchars($row['location']); ?></td>
-                <td>
-                    <span class="badge badge-program">
-                        <?php echo htmlspecialchars($row['currentStatus']); ?>
-                    </span>
-                </td>
-                <td style="color:var(--text-muted);"><?php echo htmlspecialchars($row['reporterName']); ?></td>
-                <td style="color:var(--text-muted);"><?php echo date('M d, Y', strtotime($row['created_at'])); ?></td>
             </tr>
         <?php endwhile; endif; ?>
         </tbody>

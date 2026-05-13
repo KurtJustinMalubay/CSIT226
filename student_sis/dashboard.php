@@ -5,17 +5,18 @@ include 'connect.php';
 $title = 'Dashboard';
 
 // Stats for Campus Overview
-$total_lost = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report WHERE reportType='Lost'"))['c'] ?? 0;
-$total_found = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report WHERE reportType='Found'"))['c'] ?? 0;
-$successful_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Claim_Request WHERE claimStatus='Approved'"))['c'] ?? 0;
-$pending_actions = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Claim_Request WHERE claimStatus='Pending'"))['c'] ?? 0;
+$total_lost = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report WHERE reportType='Lost'"))['c'] ?? 0;
+$total_found = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report WHERE reportType='Found'"))['c'] ?? 0;
+$successful_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM claim_request WHERE claimStatus='Approved'"))['c'] ?? 0;
+$pending_actions = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM claim_request WHERE claimStatus='Pending'"))['c'] ?? 0;
 
 // Recent Items
-$recent_items = mysqli_query($connection, "SELECT * FROM Item_Report ORDER BY reportId DESC LIMIT 6");
+$recent_items = mysqli_query($connection, "SELECT * FROM item_report ORDER BY reportId DESC LIMIT 6");
 
 require_once 'includes/header.php';
 ?>
 
+<?php if (!isset($_SESSION['isAdmin']) || !$_SESSION['isAdmin']): ?>
 <div class="hero" style="background: var(--primary); color: white; border-radius: 0 0 20px 20px; padding: 60px 20px; margin-top: -40px;">
     <h1 style="font-size: 3rem; margin-bottom: 20px; color: white;">Lost it? <span style="color: var(--accent);">Found it?</span> Return it.</h1>
     <p style="color: rgba(255,255,255,0.8); max-width: 600px; margin: 0 auto 30px; font-size: 16px;">
@@ -30,8 +31,20 @@ require_once 'includes/header.php';
         </button>
     </div>
 </div>
+<?php endif; ?>
 
 <div class="main-content">
+    <?php 
+    $flash = isset($_SESSION['flash']) ? $_SESSION['flash'] : null;
+    unset($_SESSION['flash']);
+    if ($flash): 
+    ?>
+    <div class="alert alert-<?php echo $flash['type']; ?>" style="margin-bottom: 20px;">
+        <i class="fas fa-<?php echo $flash['type']==='success'?'circle-check':'circle-exclamation'; ?>"></i>
+        <?php echo htmlspecialchars($flash['msg']); ?>
+    </div>
+    <?php endif; ?>
+
     <div class="text-center" style="margin-top: 20px;">
         <h2 style="color: var(--primary-light); font-weight: 800; font-size: 24px;">Campus Overview</h2>
         <p style="color: var(--text-muted); font-size: 14px;">Real-time statistics of our lost and found records.</p>
@@ -100,22 +113,38 @@ require_once 'includes/header.php';
             <div class="modal-title">Report a Lost Item</div>
         </div>
         <div class="modal-body">
-            <form id="lostForm" onsubmit="event.preventDefault(); submitForm('lostForm');">
+            <form id="lostForm" action="process_report.php" method="POST">
+                <input type="hidden" name="reportType" value="Lost">
                 <div class="form-group">
-                    <label>Item Name</label>
-                    <input type="text" placeholder="What did you lose?" required>
+                    <label>Item Name *</label>
+                    <input type="text" name="itemName" placeholder="What did you lose?" required>
+                </div>
+                <div class="form-row" style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Category</label>
+                        <select name="category">
+                            <option value="General">General</option>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Documents">Documents</option>
+                            <option value="Personal Items">Personal Items</option>
+                            <option value="Keys/Wallets">Keys/Wallets</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Date Lost</label>
+                        <input type="date" name="eventDate" value="<?php echo date('Y-m-d'); ?>">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Location</label>
-                    <input type="text" placeholder="Where did you last see it?" required>
+                    <label>Location *</label>
+                    <input type="text" name="location" placeholder="Where did you last see it?" required>
                 </div>
-                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Proceed</button>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" placeholder="Color, brand, unique marks..." style="width:100%; height:80px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-family:inherit;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px; width:100%;">Submit Report</button>
             </form>
-            <div id="lostFormSuccess" style="display:none; text-align: center; padding: 20px 0;">
-                <i class="fas fa-check-circle" style="font-size: 48px; color: var(--success); margin-bottom: 16px;"></i>
-                <h3 style="margin-bottom: 8px;">Form Submitted</h3>
-                <p>Please proceed to the <strong>Student Affairs Office (SAO)</strong> to formalize your report and verify your identity.</p>
-            </div>
         </div>
     </div>
 </div>
@@ -128,22 +157,38 @@ require_once 'includes/header.php';
             <div class="modal-title">Turn in a Found Item</div>
         </div>
         <div class="modal-body">
-            <form id="foundForm" onsubmit="event.preventDefault(); submitForm('foundForm');">
+            <form id="foundForm" action="process_report.php" method="POST">
+                <input type="hidden" name="reportType" value="Found">
                 <div class="form-group">
-                    <label>Item Name</label>
-                    <input type="text" placeholder="What did you find?" required>
+                    <label>Item Name *</label>
+                    <input type="text" name="itemName" placeholder="What did you find?" required>
+                </div>
+                <div class="form-row" style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Category</label>
+                        <select name="category">
+                            <option value="General">General</option>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Documents">Documents</option>
+                            <option value="Personal Items">Personal Items</option>
+                            <option value="Keys/Wallets">Keys/Wallets</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Date Found</label>
+                        <input type="date" name="eventDate" value="<?php echo date('Y-m-d'); ?>">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Location Found</label>
-                    <input type="text" placeholder="Where did you find it?" required>
+                    <label>Location Found *</label>
+                    <input type="text" name="location" placeholder="Where did you find it?" required>
                 </div>
-                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Proceed</button>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" placeholder="Color, brand, unique marks..." style="width:100%; height:80px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-family:inherit;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px; width:100%;">Submit Report</button>
             </form>
-            <div id="foundFormSuccess" style="display:none; text-align: center; padding: 20px 0;">
-                <i class="fas fa-check-circle" style="font-size: 48px; color: var(--success); margin-bottom: 16px;"></i>
-                <h3 style="margin-bottom: 8px;">Thank You!</h3>
-                <p>Please bring the found item to the <strong>Student Affairs Office (SAO)</strong> for safe keeping. Our admins will log it into the system.</p>
-            </div>
         </div>
     </div>
 </div>
@@ -154,16 +199,6 @@ function openModal(id) {
 }
 function closeModal(id) {
     document.getElementById(id).classList.remove('show');
-    // reset form
-    const form = document.getElementById(id.replace('Modal', 'Form'));
-    const success = document.getElementById(id.replace('Modal', 'FormSuccess'));
-    if(form) form.style.display = 'block';
-    if(success) success.style.display = 'none';
-    if(form) form.reset();
-}
-function submitForm(formId) {
-    document.getElementById(formId).style.display = 'none';
-    document.getElementById(formId + 'Success').style.display = 'block';
 }
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {

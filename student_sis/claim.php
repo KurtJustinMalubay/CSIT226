@@ -11,7 +11,7 @@ if ($reportId <= 0) {
 }
 
 // Fetch item details
-$stmt = $connection->prepare("SELECT * FROM Item_Report WHERE reportId = ?");
+$stmt = $connection->prepare("SELECT * FROM item_report WHERE reportId = ?");
 $stmt->bind_param("i", $reportId);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -37,9 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submitClaim'])) {
     if (empty($proof)) {
         $error = 'Please provide a detailed description or serial number.';
     } else {
-        // Insert into Claim_Request
+        // Insert into claim_request
         $claimantId = $_SESSION['uid'];
-        $insertStmt = $connection->prepare("INSERT INTO Claim_Request (reportId, claimantId, proofOfOwnership, claimStatus) VALUES (?, ?, ?, 'Pending')");
+        $insertStmt = $connection->prepare("INSERT INTO claim_request (reportId, claimantId, proofOfOwnership, claimStatus) VALUES (?, ?, ?, 'Pending')");
         $insertStmt->bind_param("iss", $reportId, $claimantId, $proof);
         
         if ($insertStmt->execute()) {
