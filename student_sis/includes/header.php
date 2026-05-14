@@ -34,9 +34,6 @@
             <a href="admin_dashboard.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'admin_dashboard.php' ? 'active' : ''; ?>">
                 Admin Panel
             </a>
-            <a href="manage_reports.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'manage_reports.php' ? 'active' : ''; ?>">
-                Reports
-            </a>
             <?php endif; ?>
             <a href="dashboard.php#recent" class="nav-link">
                 Recent Items

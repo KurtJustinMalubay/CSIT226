@@ -77,7 +77,7 @@ require_once 'includes/header.php';
     <!-- Stats row -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-top:30px;">
         <div class="card" style="text-align: center; padding: 30px;">
-            <div style="font-size: 32px; margin-bottom: 10px;">📦❓</div>
+            <div style="font-size: 32px; margin-bottom: 10px;">❓</div>
             <div style="font-size:32px;font-weight:800;"><?php echo $total_lost; ?></div>
             <div style="font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Total Lost</div>
         </div>
@@ -87,7 +87,7 @@ require_once 'includes/header.php';
             <div style="font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Total Found</div>
         </div>
         <div class="card" style="text-align: center; padding: 30px;">
-            <div style="font-size: 32px; margin-bottom: 10px; color: var(--primary-light);">124</div>
+            <div style="font-size: 32px; margin-bottom: 10px;"">📦</div>
             <div style="font-size:32px;font-weight:800;"><?php echo $successful_claims; ?></div>
             <div style="font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Successful Claims</div>
         </div>

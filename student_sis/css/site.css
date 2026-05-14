@@ -401,7 +401,7 @@ tbody td { padding: 14px 20px; font-size: 14px; color: var(--text-soft); }
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 16px;
 }
-.footer-brand { display: flex; align-items: center; gap: 14px; }
+.footer-brand { display: flex; align-items: center; gap: 14px;}
 .footer-logo {
   width: 36px; height: 36px; border-radius: 9px;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
