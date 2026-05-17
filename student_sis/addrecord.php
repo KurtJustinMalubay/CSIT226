@@ -15,15 +15,33 @@ if (isset($_POST['btnAdd'])) {
     if (empty($idnum)||empty($fname)||empty($lname)) {
         $error = 'ID Number, First Name, and Last Name are required.';
     } else {
-        $stmt = $connection->prepare("INSERT INTO tblstudent(idnumber,firstname,lastname,contactno,dob) VALUES(?,?,?,?,?)");
-        $stmt->bind_param("sssss", $idnum,$fname,$lname,$contact,$dob);
-        if ($stmt->execute()) {
-            $_SESSION['flash'] = ['type'=>'success','msg'=>"Student $fname $lname added successfully."];
+        // First, check if user exists or create a placeholder user
+        // For simplicity in this 'add record' context, we'll assume we're adding to the student table
+        // But the schema requires a parent User. 
+        // We'll create a user account for them as well.
+        $uId = 'user_' . uniqid();
+        $fullName = $fname . ' ' . $lname;
+        $username = strtolower($fname . $idnum); // Placeholder username
+        $password = password_hash('password123', PASSWORD_DEFAULT); // Default password
+        
+        $connection->begin_transaction();
+        try {
+            $stmt1 = $connection->prepare("INSERT INTO user (uId, username, fullName, email, password, universityId, isStudent) VALUES (?, ?, ?, ?, ?, ?, 1)");
+            $email = strtolower($fname . '.' . $lname . '@example.com');
+            $stmt1->bind_param("ssssss", $uId, $username, $fullName, $email, $password, $idnum);
+            $stmt1->execute();
+
+            $stmt2 = $connection->prepare("INSERT INTO student (studId, course, contactNo, dob) VALUES (?, 'N/A', ?, ?)");
+            $stmt2->bind_param("sss", $uId, $idnum, $contact, $dob); // Using idnum as placeholder for course if not provided
+            $stmt2->execute();
+
+            $connection->commit();
+            $_SESSION['flash'] = ['type'=>'success','msg'=>"Student $fullName added successfully."];
             header('Location: dashboard.php'); exit;
-        } else {
-            $error = 'Failed to save record. Please try again.';
+        } catch (Exception $e) {
+            $connection->rollback();
+            $error = 'Failed to save record: ' . $e->getMessage();
         }
-        $stmt->close();
     }
 }
 require_once 'includes/header.php';

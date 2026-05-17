@@ -32,13 +32,21 @@ if (isset($_POST['btnRegister'])) {
         } else {
             $hashed = password_hash($pword, PASSWORD_DEFAULT);
             $fullName = trim($fname . ' ' . $lname);
+            $uId = 'user_' . uniqid(); // Generate a unique ID
             $isAdmin = 0;
             $isStudent = 1;
             $isFaculty = 0;
 
-            $s = $connection->prepare("INSERT INTO `user` (fullName, email, universityId, username, password, isAdmin, isStudent, isFaculty) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $s->bind_param("sssssiii", $fullName, $email, $uname, $uname, $hashed, $isAdmin, $isStudent, $isFaculty);
+            $s = $connection->prepare("INSERT INTO `user` (uId, username, fullName, email, password, universityId, isAdmin, isStudent, isFaculty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $s->bind_param("ssssssiii", $uId, $uname, $fullName, $email, $hashed, $uname, $isAdmin, $isStudent, $isFaculty);
             if ($s->execute()) {
+                // If student, also add to student table
+                $s2 = $connection->prepare("INSERT INTO `student` (studId, course) VALUES (?, ?)");
+                $course = "N/A"; // Default or could be added to form
+                $s2->bind_param("ss", $uId, $course);
+                $s2->execute();
+                $s2->close();
+                
                 $success = 'Account created successfully! You can now log in.';
             } else {
                 $error = 'Registration failed: ' . $connection->error;

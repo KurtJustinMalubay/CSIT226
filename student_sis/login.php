@@ -18,13 +18,16 @@ if (isset($_POST['btnLogin'])) {
         $result = $stmt->get_result();
 
         if ($result->num_rows === 0) {
-            $error = 'Student ID not found. Please check and try again.';
+            $error = 'User not found. Please check and try again.';
         } else {
             $row = $result->fetch_assoc();
             if (!password_verify($pwd, $row['password'])) {
                 $error = 'Incorrect password. Please try again.';
             } else {
+                $_SESSION['uid'] = $row['uId'];
                 $_SESSION['username'] = $row['username'];
+                $_SESSION['fullName'] = $row['fullName'];
+                $_SESSION['isAdmin'] = $row['isAdmin'];
                 header('Location: dashboard.php');
                 exit;
             }
@@ -48,7 +51,7 @@ require_once 'includes/header.php';
 
     <form method="post" id="loginForm" novalidate>
         <div class="form-group">
-            <label for="txtusername"><i class="fas fa-user"></i> Student ID</label>
+            <label for="txtusername"><i class="fas fa-user"></i> School ID</label>
             <div class="input-wrap">
                 <i class="input-icon fas fa-user"></i>
                 <input type="text" id="txtusername" name="txtusername" class="has-icon"

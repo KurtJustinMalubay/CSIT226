@@ -5,13 +5,13 @@ include 'connect.php';
 $title = 'Dashboard';
 
 // Stats for Campus Overview
-$total_lost = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report WHERE reportType='Lost'"))['c'] ?? 0;
-$total_found = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Item_Report WHERE reportType='Found'"))['c'] ?? 0;
-$successful_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Claim_Request WHERE claimStatus='Approved'"))['c'] ?? 0;
-$pending_actions = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM Claim_Request WHERE claimStatus='Pending'"))['c'] ?? 0;
+$total_lost = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report WHERE reportType='Lost'"))['c'] ?? 0;
+$total_found = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM item_report WHERE reportType='Found'"))['c'] ?? 0;
+$successful_claims = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM claim_request WHERE claimStatus='Approved'"))['c'] ?? 0;
+$pending_actions = mysqli_fetch_assoc(mysqli_query($connection,"SELECT COUNT(*) as c FROM claim_request WHERE claimStatus='Pending'"))['c'] ?? 0;
 
 // Recent Items
-$recent_items = mysqli_query($connection, "SELECT * FROM Item_Report ORDER BY reportId DESC LIMIT 6");
+$recent_items = mysqli_query($connection, "SELECT * FROM item_report ORDER BY reportId DESC LIMIT 6");
 
 require_once 'includes/header.php';
 ?>

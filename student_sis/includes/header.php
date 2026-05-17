@@ -30,6 +30,11 @@
             <a href="dashboard.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : ''; ?>">
                 Dashboard
             </a>
+            <?php if (isset($_SESSION['isAdmin']) && $_SESSION['isAdmin']): ?>
+            <a href="admin_dashboard.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'admin_dashboard.php' ? 'active' : ''; ?>">
+                Admin Panel
+            </a>
+            <?php endif; ?>
             <a href="dashboard.php#recent" class="nav-link">
                 Recent Items
             </a>
@@ -55,8 +60,11 @@
     </div>
     <div class="nav-mobile" id="navMobile">
         <a href="index.php" class="nav-link"><i class="fas fa-home"></i> Home</a>
-        <?php if (isset($_SESSION['username'])): ?>
+        <?php if (isset($_SESSION['uid'])): ?>
         <a href="dashboard.php" class="nav-link"><i class="fas fa-table-columns"></i> Dashboard</a>
+        <?php if ($_SESSION['isAdmin']): ?>
+        <a href="admin_dashboard.php" class="nav-link"><i class="fas fa-user-shield"></i> Admin Panel</a>
+        <?php endif; ?>
         <a href="addrecord.php" class="nav-link"><i class="fas fa-user-plus"></i> Add Student</a>
         <a href="logout.php" class="nav-link"><i class="fas fa-right-from-bracket"></i> Logout</a>
         <?php else: ?>

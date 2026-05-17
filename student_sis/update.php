@@ -1,17 +1,17 @@
 <?php
 session_start();
-if (!isset($_SESSION['username'])) { header('Location: login.php'); exit; }
+if (!isset($_SESSION['uid'])) { header('Location: login.php'); exit; }
 include 'connect.php';
 $title = 'Edit Student';
 $error = '';
 $programs = ['BSIT','BSCS','BSIS','BSN','BSED','BEED','BSBA','BSACCOUNTANCY','BSCRIM','BSA'];
 
-$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-if (!$id) { header('Location: dashboard.php'); exit; }
+$uid = isset($_GET['uid']) ? $_GET['uid'] : '';
+if (!$uid) { header('Location: dashboard.php'); exit; }
 
 // Load existing record
-$s = $connection->prepare("SELECT * FROM tblstudent WHERE id=?");
-$s->bind_param("i",$id); $s->execute();
+$s = $connection->prepare("SELECT u.*, s.course, s.contactNo, s.dob FROM user u LEFT JOIN student s ON u.uId = s.studId WHERE u.uId=?");
+$s->bind_param("s",$uid); $s->execute();
 $res = $s->get_result();
 if ($res->num_rows===0) { header('Location: dashboard.php'); exit; }
 $student = $res->fetch_assoc();
@@ -21,7 +21,6 @@ if (isset($_POST['btnUpdate'])) {
     $idnum   = trim($_POST['txtidnumber']);
     $fname   = trim($_POST['txtfirstname']);
     $lname   = trim($_POST['txtlastname']);
-    $gender  = $_POST['txtgender'];
     $program = $_POST['txtprogram'];
     $contact = trim($_POST['txtcontact']);
     $dob     = $_POST['txtdob'];
@@ -29,19 +28,27 @@ if (isset($_POST['btnUpdate'])) {
     if (empty($idnum)||empty($fname)||empty($lname)||empty($program)) {
         $error = 'ID Number, First Name, Last Name and Program are required.';
     } else {
-        $u = $connection->prepare("UPDATE tblstudent SET idnumber=?,firstname=?,lastname=?,gender=?,program=?,contactno=?,dob=? WHERE id=?");
-        $u->bind_param("sssssssi",$idnum,$fname,$lname,$gender,$program,$contact,$dob,$id);
-        if ($u->execute()) {
+        $connection->begin_transaction();
+        try {
+            $fullName = $fname . ' ' . $lname;
+            $u1 = $connection->prepare("UPDATE user SET fullName=?, universityId=? WHERE uId=?");
+            $u1->bind_param("sss", $fullName, $idnum, $uid);
+            $u1->execute();
+
+            $u2 = $connection->prepare("UPDATE student SET course=?, contactNo=?, dob=? WHERE studId=?");
+            $u2->bind_param("ssss", $program, $contact, $dob, $uid);
+            $u2->execute();
+
+            $connection->commit();
             $_SESSION['flash'] = ['type'=>'success','msg'=>"Student record updated successfully."];
             header('Location: dashboard.php'); exit;
-        } else {
-            $error = 'Failed to update record. Please try again.';
+        } catch (Exception $e) {
+            $connection->rollback();
+            $error = 'Failed to update record: ' . $e->getMessage();
         }
-        $u->close();
     }
-    // re-populate with POST data
-    $student = array_merge($student, ['idnumber'=>$idnum,'firstname'=>$fname,'lastname'=>$lname,
-        'gender'=>$gender,'program'=>$program,'contactno'=>$contact,'dob'=>$dob]);
+    // re-populate with POST data for preview if error
+    $student = array_merge($student, ['universityId'=>$idnum,'fullName'=>$fullName,'course'=>$program,'contactNo'=>$contact,'dob'=>$dob]);
 }
 require_once 'includes/header.php';
 ?>
@@ -54,7 +61,7 @@ require_once 'includes/header.php';
             <span>Edit Student</span>
         </div>
         <h1>Edit Student</h1>
-        <p>Updating record for <strong><?php echo htmlspecialchars($student['firstname'].' '.$student['lastname']); ?></strong></p>
+        <p>Updating record for <strong><?php echo htmlspecialchars($student['fullName']); ?></strong></p>
     </div>
     <a href="dashboard.php" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
 </div>
@@ -67,44 +74,13 @@ require_once 'includes/header.php';
     <form method="post" novalidate>
         <div class="form-row">
             <div class="form-group">
-                <label for="txtidnumber">ID Number *</label>
+                <label for="txtidnumber">University ID *</label>
                 <div class="input-wrap">
                     <i class="input-icon fas fa-id-card"></i>
                     <input type="text" id="txtidnumber" name="txtidnumber" class="has-icon"
-                           value="<?php echo htmlspecialchars($student['idnumber']??''); ?>" required>
+                           value="<?php echo htmlspecialchars($student['universityId']??''); ?>" required>
                 </div>
             </div>
-            <div class="form-group">
-                <label for="txtgender">Gender</label>
-                <div class="input-wrap">
-                    <i class="input-icon fas fa-venus-mars"></i>
-                    <select id="txtgender" name="txtgender" class="has-icon">
-                        <option value="">-- Select --</option>
-                        <option value="Male"   <?php echo ($student['gender']==='Male')?'selected':''; ?>>Male</option>
-                        <option value="Female" <?php echo ($student['gender']==='Female')?'selected':''; ?>>Female</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="txtfirstname">First Name *</label>
-                <div class="input-wrap">
-                    <i class="input-icon fas fa-user"></i>
-                    <input type="text" id="txtfirstname" name="txtfirstname" class="has-icon"
-                           value="<?php echo htmlspecialchars($student['firstname']); ?>" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="txtlastname">Last Name *</label>
-                <div class="input-wrap">
-                    <i class="input-icon fas fa-user"></i>
-                    <input type="text" id="txtlastname" name="txtlastname" class="has-icon"
-                           value="<?php echo htmlspecialchars($student['lastname']); ?>" required>
-                </div>
-            </div>
-        </div>
-        <div class="form-row">
             <div class="form-group">
                 <label for="txtprogram">Program *</label>
                 <div class="input-wrap">
@@ -112,11 +88,36 @@ require_once 'includes/header.php';
                     <select id="txtprogram" name="txtprogram" class="has-icon" required>
                         <option value="">-- Select Program --</option>
                         <?php foreach($programs as $p): ?>
-                        <option value="<?php echo $p; ?>" <?php echo ($student['program']===$p)?'selected':''; ?>><?php echo $p; ?></option>
+                        <option value="<?php echo $p; ?>" <?php echo (isset($student['course']) && $student['course']===$p)?'selected':''; ?>><?php echo $p; ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
             </div>
+        </div>
+        <?php 
+        $names = explode(' ', $student['fullName'], 2);
+        $fname = $names[0];
+        $lname = isset($names[1]) ? $names[1] : '';
+        ?>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="txtfirstname">First Name *</label>
+                <div class="input-wrap">
+                    <i class="input-icon fas fa-user"></i>
+                    <input type="text" id="txtfirstname" name="txtfirstname" class="has-icon"
+                           value="<?php echo htmlspecialchars($fname); ?>" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="txtlastname">Last Name *</label>
+                <div class="input-wrap">
+                    <i class="input-icon fas fa-user"></i>
+                    <input type="text" id="txtlastname" name="txtlastname" class="has-icon"
+                           value="<?php echo htmlspecialchars($lname); ?>" required>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
             <div class="form-group">
                 <label for="txtdob">Date of Birth</label>
                 <div class="input-wrap">
@@ -125,13 +126,13 @@ require_once 'includes/header.php';
                            value="<?php echo htmlspecialchars($student['dob']??''); ?>">
                 </div>
             </div>
-        </div>
-        <div class="form-group">
-            <label for="txtcontact">Contact Number</label>
-            <div class="input-wrap">
-                <i class="input-icon fas fa-phone"></i>
-                <input type="text" id="txtcontact" name="txtcontact" class="has-icon"
-                       value="<?php echo htmlspecialchars($student['contactno']??''); ?>">
+            <div class="form-group">
+                <label for="txtcontact">Contact Number</label>
+                <div class="input-wrap">
+                    <i class="input-icon fas fa-phone"></i>
+                    <input type="text" id="txtcontact" name="txtcontact" class="has-icon"
+                           value="<?php echo htmlspecialchars($student['contactNo']??''); ?>">
+                </div>
             </div>
         </div>
 
