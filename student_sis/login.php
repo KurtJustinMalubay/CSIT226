@@ -55,7 +55,7 @@ require_once 'includes/header.php';
             <div class="input-wrap">
                 <i class="input-icon fas fa-user"></i>
                 <input type="text" id="txtusername" name="txtusername" class="has-icon"
-                       placeholder="Enter your student ID"
+                       placeholder="Enter your school ID"
                        value="<?php echo isset($_POST['txtusername']) ? htmlspecialchars($_POST['txtusername']) : ''; ?>"
                        required autocomplete="username">
             </div>

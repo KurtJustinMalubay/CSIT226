@@ -64,6 +64,10 @@
         <a href="dashboard.php" class="nav-link"><i class="fas fa-table-columns"></i> Dashboard</a>
         <?php if ($_SESSION['isAdmin']): ?>
         <a href="admin_dashboard.php" class="nav-link"><i class="fas fa-user-shield"></i> Admin Panel</a>
+<<<<<<< HEAD
+=======
+        <a href="manage_reports.php" class="nav-link"><i class="fas fa-file-invoice"></i> Manage Reports</a>
+>>>>>>> f48fd30ad0ecb6a856713fed7a5c44280b23f15b
         <?php endif; ?>
         <a href="addrecord.php" class="nav-link"><i class="fas fa-user-plus"></i> Add Student</a>
         <a href="logout.php" class="nav-link"><i class="fas fa-right-from-bracket"></i> Logout</a>
